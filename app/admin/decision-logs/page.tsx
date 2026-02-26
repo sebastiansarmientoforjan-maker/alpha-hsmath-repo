@@ -9,13 +9,21 @@ import {
   getAllDecisionLogs,
   DecisionLog,
 } from '@/lib/decisionLogs';
-import { Edit, Trash2, Plus, Save, X } from 'lucide-react';
+import { getAllReports, getReportsByDecisionLog } from '@/lib/scrollytellingReports';
+import { attachReportToDecision, detachReportFromDecision } from '@/lib/decisionLogReports';
+import { ScrollytellingReport } from '@/lib/uploadHtmlReport';
+import { DecisionLogDetail } from '@/components/ui/DecisionLogDetail';
+import { Edit, Trash2, Plus, Save, X, FileText, Link as LinkIcon } from 'lucide-react';
 
 export default function DecisionLogsAdmin() {
   const [logs, setLogs] = useState<DecisionLog[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedLog, setSelectedLog] = useState<DecisionLog | null>(null);
+  const [logReports, setLogReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
+  const [allReports, setAllReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
+  const [showAttachModal, setShowAttachModal] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -28,6 +36,7 @@ export default function DecisionLogsAdmin() {
 
   useEffect(() => {
     loadLogs();
+    loadAllReports();
   }, []);
 
   const loadLogs = async () => {
@@ -36,6 +45,60 @@ export default function DecisionLogsAdmin() {
       setLogs(data);
     } catch (error) {
       console.error('Failed to load logs:', error);
+    }
+  };
+
+  const loadAllReports = async () => {
+    try {
+      const data = await getAllReports();
+      setAllReports(data);
+    } catch (error) {
+      console.error('Failed to load reports:', error);
+    }
+  };
+
+  const loadLogReports = async (logId: string) => {
+    try {
+      const data = await getReportsByDecisionLog(logId);
+      setLogReports(data);
+    } catch (error) {
+      console.error('Failed to load log reports:', error);
+    }
+  };
+
+  const handleViewDetails = async (log: DecisionLog) => {
+    setSelectedLog(log);
+    if (log.id) {
+      await loadLogReports(log.id);
+    }
+  };
+
+  const handleAttachReport = async (logId: string, reportId: string) => {
+    try {
+      await attachReportToDecision(logId, reportId);
+      await loadLogs();
+      await loadAllReports();
+      setShowAttachModal(null);
+      alert('Report attached successfully!');
+    } catch (error) {
+      console.error('Failed to attach report:', error);
+      alert('Failed to attach report. Please try again.');
+    }
+  };
+
+  const handleDetachReport = async (reportId: string) => {
+    if (!selectedLog?.id) return;
+
+    if (!confirm('Are you sure you want to detach this report?')) return;
+
+    try {
+      await detachReportFromDecision(selectedLog.id, reportId);
+      await loadLogs();
+      await loadLogReports(selectedLog.id);
+      alert('Report detached successfully!');
+    } catch (error) {
+      console.error('Failed to detach report:', error);
+      alert('Failed to detach report. Please try again.');
     }
   };
 
@@ -96,8 +159,77 @@ export default function DecisionLogsAdmin() {
     }
   };
 
+  const orphanedReports = allReports.filter(r => !r.decisionLogId);
+
   return (
     <div>
+      {selectedLog && (
+        <DecisionLogDetail
+          log={selectedLog}
+          reports={logReports}
+          onClose={() => setSelectedLog(null)}
+          onDetachReport={handleDetachReport}
+        />
+      )}
+
+      {showAttachModal && (
+        <div className="fixed inset-0 bg-dark/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border-4 border-dark max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="bg-cool-blue border-b-4 border-dark p-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-dark">Attach Report</h3>
+              <button
+                onClick={() => setShowAttachModal(null)}
+                className="p-2 border-2 border-dark bg-white hover:bg-alert-orange transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              {orphanedReports.length === 0 ? (
+                <p className="text-dark/60 text-center py-8">
+                  No unattached reports available. All reports are already associated with decision logs.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {orphanedReports.map((report) => (
+                    <div
+                      key={report.id}
+                      className="border-4 border-dark bg-white p-4 hover:bg-bg-light transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-bold text-dark">{report.title}</h4>
+                          <div className="flex gap-2 mt-2 text-xs">
+                            <span className={`px-2 py-1 border-2 border-dark font-bold ${
+                              report.status === 'Published' ? 'bg-cool-blue' :
+                              report.status === 'Archived' ? 'bg-alert-orange' : 'bg-bg-light'
+                            }`}>
+                              {report.status}
+                            </span>
+                            {report.reportType && (
+                              <span className="px-2 py-1 border-2 border-dark bg-bg-light font-bold">
+                                {report.reportType}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <BrutalButton
+                          onClick={() => handleAttachReport(showAttachModal, report.id)}
+                          variant="primary"
+                          className="ml-4"
+                        >
+                          Attach
+                        </BrutalButton>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-4xl font-bold text-dark mb-2">Decision Logs</h1>
@@ -227,7 +359,15 @@ export default function DecisionLogsAdmin() {
             <BrutalCard key={log.id} hoverable>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-dark mb-2">{log.title}</h3>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-bold text-dark">{log.title}</h3>
+                    {log.reportCount > 0 && (
+                      <span className="flex items-center gap-1 px-2 py-1 border-2 border-dark bg-cool-blue text-dark font-bold text-xs">
+                        <FileText size={14} />
+                        {log.reportCount}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex gap-3 text-sm">
                     <span className="px-3 py-1 border-2 border-dark bg-cool-blue font-bold">
                       {log.taxonomy}
@@ -246,6 +386,20 @@ export default function DecisionLogsAdmin() {
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => log.id && handleViewDetails(log)}
+                    className="p-2 border-2 border-dark bg-white hover:bg-cool-blue transition-colors"
+                    title="View details and reports"
+                  >
+                    <FileText size={18} />
+                  </button>
+                  <button
+                    onClick={() => log.id && setShowAttachModal(log.id)}
+                    className="p-2 border-2 border-dark bg-white hover:bg-cool-blue transition-colors"
+                    title="Attach report"
+                  >
+                    <LinkIcon size={18} />
+                  </button>
                   <button
                     onClick={() => handleEdit(log)}
                     className="p-2 border-2 border-dark bg-white hover:bg-cool-blue transition-colors"

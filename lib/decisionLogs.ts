@@ -22,16 +22,20 @@ export interface DecisionLog {
   evidence_url?: string; // URL for iframe or dashboard
   author: string;
   createdAt: Timestamp;
+  reportIds: string[]; // Array of associated report IDs
+  reportCount: number; // Denormalized count for quick display
 }
 
 // Create a new decision log
 export async function createDecisionLog(
-  data: Omit<DecisionLog, 'id' | 'createdAt'>
+  data: Omit<DecisionLog, 'id' | 'createdAt' | 'reportIds' | 'reportCount'>
 ): Promise<string> {
   try {
     const docRef = await addDoc(collection(db, 'decision_logs'), {
       ...data,
       createdAt: Timestamp.now(),
+      reportIds: [],
+      reportCount: 0,
     });
     return docRef.id;
   } catch (error) {

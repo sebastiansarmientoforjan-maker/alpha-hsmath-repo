@@ -2,46 +2,74 @@
 
 import { useState, useEffect } from 'react';
 import { BrutalCard } from '@/components/ui';
-import { collection, query, orderBy, getDocs, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getAllDecisionLogs, DecisionLog } from '@/lib/decisionLogs';
+import { getReportsByDecisionLog } from '@/lib/scrollytellingReports';
 import { ScrollytellingReport } from '@/lib/uploadHtmlReport';
-import { Calendar, Tag } from 'lucide-react';
+import { DecisionLogSidebar } from '@/components/gallery/DecisionLogSidebar';
+import { DecisionLogViewer } from '@/components/gallery/DecisionLogViewer';
 import Link from 'next/link';
 
 export default function Gallery() {
-  const [reports, setReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
-  const [selectedReport, setSelectedReport] = useState<
-    (ScrollytellingReport & { id: string }) | null
-  >(null);
+  const [logs, setLogs] = useState<DecisionLog[]>([]);
+  const [selectedLog, setSelectedLog] = useState<DecisionLog | null>(null);
+  const [selectedLogReports, setSelectedLogReports] = useState<
+    (ScrollytellingReport & { id: string })[]
+  >([]);
   const [loading, setLoading] = useState(true);
+  const [filterTaxonomy, setFilterTaxonomy] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => {
-    loadReports();
+    loadData();
   }, []);
 
-  const loadReports = async () => {
+  useEffect(() => {
+    if (selectedLog?.id) {
+      loadLogReports(selectedLog.id);
+    }
+  }, [selectedLog]);
+
+  const loadData = async () => {
     try {
-      const q = query(
-        collection(db, 'scrollytelling_reports'),
-        where('status', '==', 'Published'),
-        orderBy('createdAt', 'desc')
+      const allLogs = await getAllDecisionLogs();
+
+      // Filter to only show logs with published reports
+      const logsWithPublishedReports = await Promise.all(
+        allLogs.map(async (log) => {
+          if (!log.id) return null;
+          const reports = await getReportsByDecisionLog(log.id);
+          const hasPublished = reports.some((r) => r.status === 'Published');
+          return hasPublished ? log : null;
+        })
       );
-      const querySnapshot = await getDocs(q);
 
-      const loadedReports = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as (ScrollytellingReport & { id: string })[];
+      const filteredLogs = logsWithPublishedReports.filter((log) => log !== null) as DecisionLog[];
+      setLogs(filteredLogs);
 
-      setReports(loadedReports);
-      if (loadedReports.length > 0) {
-        setSelectedReport(loadedReports[0]);
+      if (filteredLogs.length > 0) {
+        setSelectedLog(filteredLogs[0]);
       }
     } catch (error) {
-      console.error('Failed to load reports:', error);
+      console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadLogReports = async (logId: string) => {
+    try {
+      const reports = await getReportsByDecisionLog(logId);
+      // Only show published reports in the gallery
+      const publishedReports = reports.filter((r) => r.status === 'Published');
+      setSelectedLogReports(publishedReports);
+    } catch (error) {
+      console.error('Failed to load reports:', error);
+      setSelectedLogReports([]);
+    }
+  };
+
+  const handleSelectLog = (log: DecisionLog) => {
+    setSelectedLog(log);
   };
 
   if (loading) {
@@ -52,20 +80,21 @@ export default function Gallery() {
     );
   }
 
-  if (reports.length === 0) {
+  if (logs.length === 0) {
     return (
       <div className="min-h-screen bg-bg-light p-8">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-4xl font-bold text-dark mb-4">Research Gallery</h1>
           <BrutalCard>
             <div className="text-center py-12">
-              <p className="text-xl text-dark/60 mb-4">No published reports yet</p>
-              <p className="text-dark/50">
-                Reports will appear here once they are published in the admin panel.
+              <p className="text-xl text-dark/60 mb-4">No published content yet</p>
+              <p className="text-dark/50 mb-6">
+                Decision logs with published reports will appear here once they are created in the
+                admin panel.
               </p>
               <Link
                 href="/admin"
-                className="inline-block mt-6 px-6 py-3 border-4 border-dark bg-cool-blue text-dark font-bold shadow-[6px_6px_0px_0px_rgba(18,18,18,1)] hover:shadow-[2px_2px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[4px] hover:translate-y-[4px] transition-all"
+                className="inline-block px-6 py-3 border-4 border-dark bg-cool-blue text-dark font-bold shadow-[6px_6px_0px_0px_rgba(18,18,18,1)] hover:shadow-[2px_2px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[4px] hover:translate-y-[4px] transition-all"
               >
                 Go to Admin Panel
               </Link>
@@ -77,13 +106,13 @@ export default function Gallery() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-light">
+    <div className="min-h-screen bg-bg-light flex flex-col">
       {/* Header */}
-      <div className="border-b-4 border-dark bg-white p-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="border-b-4 border-dark bg-white p-6 flex-shrink-0">
+        <div className="max-w-full mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-dark">HS Math Research Gallery</h1>
-            <p className="text-dark/70">Documentation & Analysis Hub</p>
+            <p className="text-dark/70">Decision-Based Documentation & Analysis Hub</p>
           </div>
           <Link
             href="/admin"
@@ -94,73 +123,32 @@ export default function Gallery() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-8">
-        {/* Hero Iframe */}
-        <div className="mb-8">
-          <BrutalCard className="p-0 overflow-hidden">
-            <div className="bg-dark text-white p-4 border-b-4 border-dark">
-              <h2 className="text-xl font-bold">{selectedReport?.title}</h2>
-              <div className="flex gap-4 mt-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <Calendar size={16} />
-                  {selectedReport?.createdAt.toDate().toLocaleDateString()}
-                </div>
-                {selectedReport && selectedReport.tags.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Tag size={16} />
-                    {selectedReport.tags.join(', ')}
-                  </div>
-                )}
-              </div>
-            </div>
-            <iframe
-              src={selectedReport?.storage_url}
-              className="w-full h-[600px] bg-white"
-              title={selectedReport?.title}
-              sandbox="allow-scripts allow-same-origin"
-            />
-          </BrutalCard>
+      {/* Main Content: Sidebar + Viewer */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar - 30% */}
+        <div className="w-full md:w-[350px] lg:w-[400px] flex-shrink-0 overflow-hidden">
+          <DecisionLogSidebar
+            logs={logs}
+            selectedLogId={selectedLog?.id || null}
+            onSelectLog={handleSelectLog}
+            filterTaxonomy={filterTaxonomy}
+            filterStatus={filterStatus}
+            onFilterTaxonomyChange={setFilterTaxonomy}
+            onFilterStatusChange={setFilterStatus}
+          />
         </div>
 
-        {/* Report Cards Grid */}
-        <div>
-          <h2 className="text-2xl font-bold text-dark mb-4">All Reports</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {reports.map((report) => (
-              <BrutalCard
-                key={report.id}
-                hoverable
-                onClick={() => setSelectedReport(report)}
-                className={`cursor-pointer ${
-                  selectedReport?.id === report.id ? 'ring-4 ring-cool-blue' : ''
-                }`}
-              >
-                <h3 className="text-lg font-bold text-dark mb-2">{report.title}</h3>
-
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {report.tags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className="px-2 py-1 text-xs border-2 border-dark bg-bg-light font-bold uppercase"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="flex items-center gap-2 text-sm text-dark/60">
-                  <Calendar size={14} />
-                  {report.createdAt.toDate().toLocaleDateString()}
-                </div>
-
-                <div className="mt-3 pt-3 border-t-2 border-dark">
-                  <p className="text-xs text-dark/60 uppercase tracking-wide font-bold">
-                    {report.filename}
-                  </p>
-                </div>
-              </BrutalCard>
-            ))}
-          </div>
+        {/* Main Viewer - 70% */}
+        <div className="flex-1 overflow-hidden">
+          {selectedLog ? (
+            <DecisionLogViewer log={selectedLog} reports={selectedLogReports} />
+          ) : (
+            <div className="h-full flex items-center justify-center bg-bg-light">
+              <div className="text-center">
+                <p className="text-xl text-dark/60">Select a decision log to view details</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

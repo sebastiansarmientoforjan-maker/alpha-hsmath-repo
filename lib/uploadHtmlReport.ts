@@ -9,13 +9,19 @@ export interface ScrollytellingReport {
   status: 'Published' | 'Archived' | 'Draft';
   tags: string[];
   createdAt: Timestamp;
+  decisionLogId: string | null; // Reference to parent decision
+  description?: string; // Brief context about the report
+  reportType?: string; // Type of evidence (Pre-Analysis, Mid-Term, Final, Other)
 }
 
 export async function uploadHtmlReport(
   file: File,
   title: string,
   tags: string[] = [],
-  status: 'Published' | 'Archived' | 'Draft' = 'Draft'
+  status: 'Published' | 'Archived' | 'Draft' = 'Draft',
+  decisionLogId: string | null = null,
+  description: string = '',
+  reportType: string = 'Other'
 ): Promise<string> {
   try {
     // Create a reference to the file in Firebase Storage
@@ -35,6 +41,9 @@ export async function uploadHtmlReport(
       status,
       tags,
       createdAt: Timestamp.now(),
+      decisionLogId,
+      description,
+      reportType,
     };
 
     const docRef = await addDoc(collection(db, 'scrollytelling_reports'), reportData);

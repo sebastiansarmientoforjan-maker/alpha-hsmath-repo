@@ -9,8 +9,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: Home },
-    { href: '/admin/scrollytelling', label: 'Scrollytelling Reports', icon: FileText },
     { href: '/admin/decision-logs', label: 'Decision Logs', icon: Database },
+    { href: '/admin/scrollytelling', label: 'Scrollytelling Reports', icon: FileText },
   ];
 
   return (
