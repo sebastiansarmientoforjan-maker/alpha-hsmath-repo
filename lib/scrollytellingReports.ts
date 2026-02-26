@@ -94,12 +94,14 @@ export async function getReportsByDecisionLog(
   }
 }
 
-// Get orphaned reports (not associated with any decision)
-export async function getOrphanedReports(): Promise<(ScrollytellingReport & { id: string })[]> {
+// Get reports by investigation
+export async function getReportsByInvestigation(
+  investigationId: string
+): Promise<(ScrollytellingReport & { id: string })[]> {
   try {
     const q = query(
       collection(db, 'scrollytelling_reports'),
-      where('decisionLogId', '==', null),
+      where('investigationId', '==', investigationId),
       orderBy('createdAt', 'desc')
     );
     const querySnapshot = await getDocs(q);
@@ -108,6 +110,20 @@ export async function getOrphanedReports(): Promise<(ScrollytellingReport & { id
       id: doc.id,
       ...doc.data(),
     })) as (ScrollytellingReport & { id: string })[];
+  } catch (error) {
+    console.error('Error getting reports by investigation:', error);
+    throw error;
+  }
+}
+
+// Get orphaned reports (not associated with any decision or investigation)
+export async function getOrphanedReports(): Promise<(ScrollytellingReport & { id: string })[]> {
+  try {
+    // Get all reports and filter in memory (Firestore doesn't support OR queries easily)
+    const allReports = await getAllReports();
+    return allReports.filter(
+      (report) => !report.decisionLogId && !report.investigationId
+    );
   } catch (error) {
     console.error('Error getting orphaned reports:', error);
     throw error;

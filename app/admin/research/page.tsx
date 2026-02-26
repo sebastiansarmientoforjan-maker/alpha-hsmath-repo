@@ -1,0 +1,533 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { BrutalCard, BrutalInput, BrutalButton } from '@/components/ui';
+import {
+  createInvestigation,
+  updateInvestigation,
+  deleteInvestigation,
+  getAllInvestigations,
+  Investigation,
+  ResearchType,
+  MathematicalArea,
+  InvestigationStatus,
+} from '@/lib/investigations';
+import { getReportsByInvestigation } from '@/lib/scrollytellingReports';
+import { ScrollytellingReport } from '@/lib/uploadHtmlReport';
+import { Edit, Trash2, Plus, Save, X, FileText, Eye } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
+
+export default function ResearchRepositoryAdmin() {
+  const [investigations, setInvestigations] = useState<Investigation[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [viewingInvestigation, setViewingInvestigation] = useState<Investigation | null>(null);
+  const [viewingReports, setViewingReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
+
+  const [formData, setFormData] = useState<{
+    title: string;
+    description: string;
+    researchType: ResearchType;
+    mathematicalArea: MathematicalArea;
+    status: InvestigationStatus;
+    keyFindings: string;
+    methodology: string;
+    impactMetrics: string;
+    author: string;
+    startDate: string;
+    completionDate: string;
+  }>({
+    title: '',
+    description: '',
+    researchType: 'Learning Pattern Analysis',
+    mathematicalArea: 'Algebra',
+    status: 'In Progress',
+    keyFindings: '',
+    methodology: '',
+    impactMetrics: '',
+    author: '',
+    startDate: new Date().toISOString().split('T')[0],
+    completionDate: '',
+  });
+
+  useEffect(() => {
+    loadInvestigations();
+  }, []);
+
+  const loadInvestigations = async () => {
+    try {
+      const data = await getAllInvestigations();
+      setInvestigations(data);
+    } catch (error) {
+      console.error('Failed to load investigations:', error);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      researchType: 'Learning Pattern Analysis',
+      mathematicalArea: 'Algebra',
+      status: 'In Progress',
+      keyFindings: '',
+      methodology: '',
+      impactMetrics: '',
+      author: '',
+      startDate: new Date().toISOString().split('T')[0],
+      completionDate: '',
+    });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const startDate = Timestamp.fromDate(new Date(formData.startDate));
+      const completionDate = formData.completionDate
+        ? Timestamp.fromDate(new Date(formData.completionDate))
+        : undefined;
+
+      if (editingId) {
+        await updateInvestigation(editingId, {
+          ...formData,
+          startDate,
+          completionDate,
+        });
+      } else {
+        await createInvestigation({
+          ...formData,
+          startDate,
+          completionDate,
+        });
+      }
+      await loadInvestigations();
+      resetForm();
+    } catch (error) {
+      console.error('Failed to save investigation:', error);
+      alert('Failed to save. Make sure Firebase is configured correctly.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (investigation: Investigation) => {
+    setFormData({
+      title: investigation.title,
+      description: investigation.description,
+      researchType: investigation.researchType,
+      mathematicalArea: investigation.mathematicalArea,
+      status: investigation.status,
+      keyFindings: investigation.keyFindings,
+      methodology: investigation.methodology,
+      impactMetrics: investigation.impactMetrics || '',
+      author: investigation.author,
+      startDate: new Date(investigation.startDate.seconds * 1000).toISOString().split('T')[0],
+      completionDate: investigation.completionDate
+        ? new Date(investigation.completionDate.seconds * 1000).toISOString().split('T')[0]
+        : '',
+    });
+    setEditingId(investigation.id!);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this investigation?')) return;
+
+    try {
+      await deleteInvestigation(id);
+      await loadInvestigations();
+    } catch (error) {
+      console.error('Failed to delete investigation:', error);
+    }
+  };
+
+  const handleView = async (investigation: Investigation) => {
+    setViewingInvestigation(investigation);
+    if (investigation.id) {
+      const reports = await getReportsByInvestigation(investigation.id);
+      setViewingReports(reports);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-4xl font-bold text-dark mb-2">Research Repository</h1>
+          <p className="text-dark/70">
+            Document investigations, analyze learning patterns, and track research findings
+          </p>
+        </div>
+        <BrutalButton
+          onClick={() => setShowForm(!showForm)}
+          variant="primary"
+          className="flex items-center gap-2"
+        >
+          {showForm ? <X size={20} /> : <Plus size={20} />}
+          {showForm ? 'Cancel' : 'New Investigation'}
+        </BrutalButton>
+      </div>
+
+      {/* Form */}
+      {showForm && (
+        <BrutalCard className="mb-6">
+          <h2 className="text-xl font-bold text-dark mb-4">
+            {editingId ? 'Edit Investigation' : 'Create New Investigation'}
+          </h2>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <BrutalInput
+              label="Title"
+              placeholder="e.g., Pattern Analysis: Algebra Mastery in 8th Grade"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              required
+            />
+
+            <div>
+              <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
+                Description (Executive Summary)
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={4}
+                className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-serif focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] resize-y"
+                placeholder="Brief executive summary of the investigation..."
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
+                  Research Type
+                </label>
+                <select
+                  value={formData.researchType}
+                  onChange={(e) =>
+                    setFormData({ ...formData, researchType: e.target.value as ResearchType })
+                  }
+                  className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-medium focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]"
+                  required
+                >
+                  <option value="Learning Pattern Analysis">Learning Pattern Analysis</option>
+                  <option value="Content Development">Content Development</option>
+                  <option value="AI-Powered Pathways">AI-Powered Pathways</option>
+                  <option value="Student Data Analysis">Student Data Analysis</option>
+                  <option value="Pedagogical Innovation">Pedagogical Innovation</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
+                  Mathematical Area
+                </label>
+                <select
+                  value={formData.mathematicalArea}
+                  onChange={(e) =>
+                    setFormData({ ...formData, mathematicalArea: e.target.value as MathematicalArea })
+                  }
+                  className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-medium focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]"
+                  required
+                >
+                  <option value="Elementary Arithmetic">Elementary Arithmetic</option>
+                  <option value="Algebra">Algebra</option>
+                  <option value="Geometry">Geometry</option>
+                  <option value="Calculus">Calculus</option>
+                  <option value="Statistics">Statistics</option>
+                  <option value="Cross-Domain">Cross-Domain</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
+                  Status
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value as InvestigationStatus })
+                  }
+                  className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-medium focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]"
+                  required
+                >
+                  <option value="In Progress">In Progress</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Published">Published</option>
+                </select>
+              </div>
+
+              <BrutalInput
+                label="Start Date"
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                required
+              />
+
+              <BrutalInput
+                label="Completion Date (Optional)"
+                type="date"
+                value={formData.completionDate}
+                onChange={(e) => setFormData({ ...formData, completionDate: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
+                Key Findings
+              </label>
+              <textarea
+                value={formData.keyFindings}
+                onChange={(e) => setFormData({ ...formData, keyFindings: e.target.value })}
+                rows={4}
+                className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-serif focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] resize-y"
+                placeholder="Main discoveries and insights..."
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
+                Methodology
+              </label>
+              <textarea
+                value={formData.methodology}
+                onChange={(e) => setFormData({ ...formData, methodology: e.target.value })}
+                rows={4}
+                className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-serif focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] resize-y"
+                placeholder="How the analysis was conducted..."
+                required
+              />
+            </div>
+
+            <BrutalInput
+              label="Impact Metrics (Optional)"
+              placeholder="e.g., 2x acceleration in concept mastery"
+              value={formData.impactMetrics}
+              onChange={(e) => setFormData({ ...formData, impactMetrics: e.target.value })}
+            />
+
+            <BrutalInput
+              label="Author"
+              placeholder="e.g., Dr. Smith"
+              value={formData.author}
+              onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+              required
+            />
+
+            <div className="flex gap-4 pt-4">
+              <BrutalButton type="submit" variant="primary" disabled={loading}>
+                <Save size={20} className="inline mr-2" />
+                {loading ? 'Saving...' : editingId ? 'Update Investigation' : 'Create Investigation'}
+              </BrutalButton>
+              <BrutalButton type="button" variant="secondary" onClick={resetForm}>
+                Cancel
+              </BrutalButton>
+            </div>
+          </form>
+        </BrutalCard>
+      )}
+
+      {/* List of Investigations */}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold text-dark">Existing Investigations</h2>
+
+        {investigations.length === 0 ? (
+          <BrutalCard>
+            <p className="text-dark/60 text-center py-8">
+              No investigations yet. Create your first one above.
+            </p>
+          </BrutalCard>
+        ) : (
+          investigations.map((inv) => (
+            <BrutalCard key={inv.id} hoverable>
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-bold text-dark">{inv.title}</h3>
+                    {inv.reportCount > 0 && (
+                      <span className="flex items-center gap-1 px-2 py-1 border-2 border-dark bg-cool-blue text-dark font-bold text-xs">
+                        <FileText size={14} />
+                        {inv.reportCount}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-3 text-sm mb-3">
+                    <span className="px-3 py-1 border-2 border-dark bg-cool-blue font-bold">
+                      {inv.researchType}
+                    </span>
+                    <span className="px-3 py-1 border-2 border-dark bg-bg-light font-bold">
+                      {inv.mathematicalArea}
+                    </span>
+                    <span
+                      className={`px-3 py-1 border-2 border-dark font-bold ${
+                        inv.status === 'Published'
+                          ? 'bg-cool-blue'
+                          : inv.status === 'Completed'
+                          ? 'bg-alert-orange'
+                          : 'bg-bg-light'
+                      }`}
+                    >
+                      {inv.status}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleView(inv)}
+                    className="p-2 border-2 border-dark bg-white hover:bg-cool-blue transition-colors"
+                    title="View details"
+                  >
+                    <Eye size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleEdit(inv)}
+                    className="p-2 border-2 border-dark bg-white hover:bg-cool-blue transition-colors"
+                  >
+                    <Edit size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(inv.id!)}
+                    className="p-2 border-2 border-dark bg-white hover:bg-alert-orange transition-colors"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-dark/80 font-serif mb-3">
+                {inv.description.length > 200
+                  ? inv.description.substring(0, 200) + '...'
+                  : inv.description}
+              </p>
+
+              {inv.impactMetrics && (
+                <div className="mb-3 px-3 py-2 border-2 border-dark bg-cool-blue/20">
+                  <p className="text-sm font-bold text-dark">
+                    📈 Impact: {inv.impactMetrics}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center gap-4 text-sm text-dark/60">
+                <span>By {inv.author}</span>
+                <span>Started: {new Date(inv.startDate.seconds * 1000).toLocaleDateString()}</span>
+              </div>
+            </BrutalCard>
+          ))
+        )}
+      </div>
+
+      {/* View Modal */}
+      {viewingInvestigation && (
+        <div className="fixed inset-0 bg-dark/50 flex items-center justify-center z-50 p-4 overflow-auto">
+          <div className="bg-white border-4 border-dark max-w-4xl w-full max-h-[90vh] overflow-auto my-8">
+            <div className="sticky top-0 bg-cool-blue border-b-4 border-dark p-6 flex items-start justify-between z-10">
+              <div>
+                <h2 className="text-2xl font-bold text-dark mb-2">{viewingInvestigation.title}</h2>
+                <div className="flex gap-2 text-sm">
+                  <span className="px-2 py-1 border-2 border-dark bg-white font-bold">
+                    {viewingInvestigation.researchType}
+                  </span>
+                  <span className="px-2 py-1 border-2 border-dark bg-white font-bold">
+                    {viewingInvestigation.mathematicalArea}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingInvestigation(null)}
+                className="p-2 border-4 border-dark bg-white hover:bg-alert-orange transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div>
+                <h3 className="text-lg font-bold text-dark mb-2">Description</h3>
+                <p className="text-dark font-serif whitespace-pre-wrap">
+                  {viewingInvestigation.description}
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold text-dark mb-2">Key Findings</h3>
+                <p className="text-dark font-serif whitespace-pre-wrap">
+                  {viewingInvestigation.keyFindings}
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold text-dark mb-2">Methodology</h3>
+                <p className="text-dark font-serif whitespace-pre-wrap">
+                  {viewingInvestigation.methodology}
+                </p>
+              </div>
+
+              {viewingInvestigation.impactMetrics && (
+                <div>
+                  <h3 className="text-lg font-bold text-dark mb-2">Impact Metrics</h3>
+                  <p className="text-dark font-serif">{viewingInvestigation.impactMetrics}</p>
+                </div>
+              )}
+
+              <div>
+                <h3 className="text-lg font-bold text-dark mb-3">
+                  Associated Reports ({viewingReports.length})
+                </h3>
+                {viewingReports.length === 0 ? (
+                  <p className="text-dark/60">No reports associated yet. Upload reports from the Scrollytelling Reports page.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {viewingReports.map((report) => (
+                      <div
+                        key={report.id}
+                        className="border-4 border-dark bg-white p-3 hover:bg-bg-light transition-colors"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h4 className="font-bold text-dark">{report.title}</h4>
+                            <div className="flex gap-2 mt-1 text-xs">
+                              <span className={`px-2 py-1 border-2 border-dark font-bold ${
+                                report.status === 'Published' ? 'bg-cool-blue' :
+                                report.status === 'Archived' ? 'bg-alert-orange' : 'bg-bg-light'
+                              }`}>
+                                {report.status}
+                              </span>
+                              {report.reportType && (
+                                <span className="px-2 py-1 border-2 border-dark bg-bg-light font-bold">
+                                  {report.reportType}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <a
+                            href={report.storage_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-2 border-4 border-dark bg-cool-blue text-dark font-bold hover:bg-white transition-colors text-sm"
+                          >
+                            View
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

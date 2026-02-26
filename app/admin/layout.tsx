@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, Database, Home } from 'lucide-react';
+import { FileText, Database, Home, Microscope } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: Home },
+    { href: '/admin/research', label: 'Research Repository', icon: Microscope },
     { href: '/admin/decision-logs', label: 'Decision Logs', icon: Database },
     { href: '/admin/scrollytelling', label: 'Scrollytelling Reports', icon: FileText },
   ];

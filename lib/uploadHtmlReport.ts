@@ -9,7 +9,11 @@ export interface ScrollytellingReport {
   status: 'Published' | 'Archived' | 'Draft';
   tags: string[];
   createdAt: Timestamp;
-  decisionLogId: string | null; // Reference to parent decision
+
+  // MODIFIED: Can belong to investigation OR decision
+  investigationId: string | null; // If belongs to investigation
+  decisionLogId: string | null; // If belongs to decision (own scrollytelling)
+
   description?: string; // Brief context about the report
   reportType?: string; // Type of evidence (Pre-Analysis, Mid-Term, Final, Other)
 }
@@ -19,6 +23,7 @@ export async function uploadHtmlReport(
   title: string,
   tags: string[] = [],
   status: 'Published' | 'Archived' | 'Draft' = 'Draft',
+  investigationId: string | null = null,
   decisionLogId: string | null = null,
   description: string = '',
   reportType: string = 'Other'
@@ -41,6 +46,7 @@ export async function uploadHtmlReport(
       status,
       tags,
       createdAt: Timestamp.now(),
+      investigationId,
       decisionLogId,
       description,
       reportType,

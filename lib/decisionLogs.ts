@@ -22,18 +22,33 @@ export interface DecisionLog {
   evidence_url?: string; // URL for iframe or dashboard
   author: string;
   createdAt: Timestamp;
-  reportIds: string[]; // Array of associated report IDs
-  reportCount: number; // Denormalized count for quick display
+
+  // NEW: Relationship with investigations (N→N)
+  investigationIds: string[]; // Multiple investigations can inform a decision
+  investigationCount: number;
+
+  // NEW: School context (for decisions based on student cases)
+  schoolContext?: string;
+
+  // MODIFIED: Own scrollytelling (optional, only 1)
+  ownScrollytellingId?: string | null;
+
+  // DEPRECATED: Will be removed in favor of investigation reports
+  reportIds?: string[]; // Legacy field - kept for migration
+  reportCount?: number; // Legacy field - kept for migration
 }
 
 // Create a new decision log
 export async function createDecisionLog(
-  data: Omit<DecisionLog, 'id' | 'createdAt' | 'reportIds' | 'reportCount'>
+  data: Omit<DecisionLog, 'id' | 'createdAt' | 'investigationIds' | 'investigationCount' | 'reportIds' | 'reportCount'>
 ): Promise<string> {
   try {
     const docRef = await addDoc(collection(db, 'decision_logs'), {
       ...data,
       createdAt: Timestamp.now(),
+      investigationIds: [],
+      investigationCount: 0,
+      // Keep legacy fields for backward compatibility
       reportIds: [],
       reportCount: 0,
     });
