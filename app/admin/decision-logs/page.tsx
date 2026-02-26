@@ -431,6 +431,19 @@ export default function DecisionLogsAdmin() {
               />
             </div>
 
+            <div>
+              <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
+                School Context (Optional)
+              </label>
+              <textarea
+                value={formData.schoolContext}
+                onChange={(e) => setFormData({ ...formData, schoolContext: e.target.value })}
+                rows={4}
+                className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-serif focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] resize-y"
+                placeholder="Specific student cases or school scenarios that led to this decision..."
+              />
+            </div>
+
             <BrutalInput
               label="Evidence URL (Optional)"
               placeholder="https://dashboard.example.com/data"
@@ -477,7 +490,13 @@ export default function DecisionLogsAdmin() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-xl font-bold text-dark">{log.title}</h3>
-                    {log.reportCount > 0 && (
+                    {(log.investigationCount ?? 0) > 0 && (
+                      <span className="flex items-center gap-1 px-2 py-1 border-2 border-dark bg-cool-blue text-dark font-bold text-xs">
+                        <Microscope size={14} />
+                        {log.investigationCount}
+                      </span>
+                    )}
+                    {(log.reportCount ?? 0) > 0 && (
                       <span className="flex items-center gap-1 px-2 py-1 border-2 border-dark bg-cool-blue text-dark font-bold text-xs">
                         <FileText size={14} />
                         {log.reportCount}
@@ -508,6 +527,13 @@ export default function DecisionLogsAdmin() {
                     title="View details and reports"
                   >
                     <FileText size={18} />
+                  </button>
+                  <button
+                    onClick={() => log.id && setShowLinkInvestigationModal(log.id)}
+                    className="p-2 border-2 border-dark bg-white hover:bg-cool-blue transition-colors"
+                    title="Link investigation"
+                  >
+                    <Microscope size={18} />
                   </button>
                   <button
                     onClick={() => log.id && setShowAttachModal(log.id)}
