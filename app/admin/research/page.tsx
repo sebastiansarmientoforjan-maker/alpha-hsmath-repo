@@ -142,9 +142,11 @@ export default function ResearchRepositoryAdmin() {
       }
       await loadInvestigations();
       resetForm();
+      alert('Investigation saved successfully!');
     } catch (error) {
       console.error('Failed to save investigation:', error);
-      alert('Failed to save. Make sure Firebase is configured correctly.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to save investigation:\n\n${errorMessage}\n\nCheck browser console (F12) for details.`);
     } finally {
       setLoading(false);
     }
