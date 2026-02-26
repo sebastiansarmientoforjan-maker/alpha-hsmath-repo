@@ -1,26 +1,31 @@
 @import "tailwindcss";
 
+/* Neobrutalism Design Tokens - Alpha Math Research Repository */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-light: #F4F4F4;
+  --dark: #121212;
+  --cool-blue: #16a1df;
+  --alert-orange: #e86e25;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Colors */
+  --color-bg-light: var(--bg-light);
+  --color-dark: var(--dark);
+  --color-cool-blue: var(--cool-blue);
+  --color-alert-orange: var(--alert-orange);
+
+  /* Fonts */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Brutal Shadows */
+  --shadow-brutal: 6px 6px 0px 0px rgba(18, 18, 18, 1);
+  --shadow-brutal-hover: 2px 2px 0px 0px rgba(18, 18, 18, 1);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg-light);
+  color: var(--dark);
   font-family: Arial, Helvetica, sans-serif;
 }
