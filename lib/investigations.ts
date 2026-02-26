@@ -58,8 +58,13 @@ export async function createInvestigation(
   data: Omit<Investigation, 'id' | 'createdAt' | 'scrollytellingReportIds' | 'reportCount'>
 ): Promise<string> {
   try {
+    // Remove undefined fields (Firestore doesn't accept undefined)
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([_, value]) => value !== undefined)
+    );
+
     const docRef = await addDoc(collection(db, 'investigations'), {
-      ...data,
+      ...cleanData,
       createdAt: Timestamp.now(),
       scrollytellingReportIds: [],
       reportCount: 0,
@@ -77,8 +82,13 @@ export async function updateInvestigation(
   data: Partial<Omit<Investigation, 'id' | 'createdAt'>>
 ): Promise<void> {
   try {
+    // Remove undefined fields (Firestore doesn't accept undefined)
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([_, value]) => value !== undefined)
+    );
+
     const docRef = doc(db, 'investigations', id);
-    await updateDoc(docRef, data);
+    await updateDoc(docRef, cleanData);
   } catch (error) {
     console.error('Error updating investigation:', error);
     throw error;
