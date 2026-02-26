@@ -108,11 +108,6 @@ export default function Home() {
               Mathematics program to create a transparent, evidence-based record of pedagogical
               decisions, facilitate meaningful debate, and analyze the evolution of instructional strategies.
             </p>
-            <p>
-              This platform combines Swiss design principles with neobrutalist aesthetics
-              to deliver a bold, functional interface that prioritizes clarity and
-              accessibility.
-            </p>
             <p className="text-sm text-dark/60 mt-6">
               Built with Next.js 14, Firebase, and TailwindCSS. Deployed on Vercel.
             </p>
