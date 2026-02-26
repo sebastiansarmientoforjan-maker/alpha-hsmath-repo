@@ -22,6 +22,7 @@ export default function ResearchRepositoryAdmin() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingInvestigations, setLoadingInvestigations] = useState(true);
   const [viewingInvestigation, setViewingInvestigation] = useState<Investigation | null>(null);
   const [viewingReports, setViewingReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
   const [showJsonPaste, setShowJsonPaste] = useState(false);
@@ -67,11 +68,14 @@ export default function ResearchRepositoryAdmin() {
   }, []);
 
   const loadInvestigations = async () => {
+    setLoadingInvestigations(true);
     try {
       const data = await getAllInvestigations();
       setInvestigations(data);
     } catch (error) {
       console.error('Failed to load investigations:', error);
+    } finally {
+      setLoadingInvestigations(false);
     }
   };
 
@@ -659,7 +663,14 @@ export default function ResearchRepositoryAdmin() {
       <div className="space-y-4">
         <h2 className="text-2xl font-bold text-dark">Existing Investigations</h2>
 
-        {investigations.length === 0 ? (
+        {loadingInvestigations ? (
+          <BrutalCard>
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-dark border-t-transparent mb-4"></div>
+              <p className="text-dark/60">Loading investigations...</p>
+            </div>
+          </BrutalCard>
+        ) : investigations.length === 0 ? (
           <BrutalCard>
             <p className="text-dark/60 text-center py-8">
               No investigations yet. Create your first one above.
