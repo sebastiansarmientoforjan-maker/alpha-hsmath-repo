@@ -5,8 +5,10 @@ import { BrutalCard, BrutalInput, BrutalButton } from '@/components/ui';
 import { FileUploader } from '@/components/ui/FileUploader';
 import { uploadHtmlReport, ScrollytellingReport } from '@/lib/uploadHtmlReport';
 import { getAllDecisionLogs, DecisionLog } from '@/lib/decisionLogs';
+import { getAllInvestigations, Investigation } from '@/lib/investigations';
 import { getAllReports, updateReport, deleteReport } from '@/lib/scrollytellingReports';
 import { attachReportToDecision } from '@/lib/decisionLogReports';
+import { attachReportToInvestigation } from '@/lib/investigationReports';
 import { Edit, Trash2, AlertTriangle, ExternalLink } from 'lucide-react';
 
 export default function ScrollytellingAdmin() {
@@ -15,8 +17,11 @@ export default function ScrollytellingAdmin() {
   const [status, setStatus] = useState<'Published' | 'Archived' | 'Draft'>('Draft');
   const [description, setDescription] = useState('');
   const [reportType, setReportType] = useState('Other');
+  const [associationType, setAssociationType] = useState<'none' | 'investigation' | 'decision'>('none');
+  const [selectedInvestigation, setSelectedInvestigation] = useState('');
   const [selectedDecisionLog, setSelectedDecisionLog] = useState('');
 
+  const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [decisionLogs, setDecisionLogs] = useState<DecisionLog[]>([]);
   const [reports, setReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
   const [editingReport, setEditingReport] = useState<(ScrollytellingReport & { id: string }) | null>(null);
@@ -24,9 +29,19 @@ export default function ScrollytellingAdmin() {
   const [filterAssociation, setFilterAssociation] = useState<string>('all');
 
   useEffect(() => {
+    loadInvestigations();
     loadDecisionLogs();
     loadReports();
   }, []);
+
+  const loadInvestigations = async () => {
+    try {
+      const data = await getAllInvestigations();
+      setInvestigations(data);
+    } catch (error) {
+      console.error('Failed to load investigations:', error);
+    }
+  };
 
   const loadDecisionLogs = async () => {
     try {
@@ -61,13 +76,16 @@ export default function ScrollytellingAdmin() {
           title,
           tagsArray,
           status,
-          selectedDecisionLog || null,
+          associationType === 'investigation' ? selectedInvestigation || null : null,
+          associationType === 'decision' ? selectedDecisionLog || null : null,
           description,
           reportType
         );
 
-        // If associated with a decision log, attach it
-        if (selectedDecisionLog) {
+        // Attach to the appropriate parent
+        if (associationType === 'investigation' && selectedInvestigation) {
+          await attachReportToInvestigation(selectedInvestigation, reportId);
+        } else if (associationType === 'decision' && selectedDecisionLog) {
           await attachReportToDecision(selectedDecisionLog, reportId);
         }
       }
@@ -77,8 +95,11 @@ export default function ScrollytellingAdmin() {
       setStatus('Draft');
       setDescription('');
       setReportType('Other');
+      setAssociationType('none');
+      setSelectedInvestigation('');
       setSelectedDecisionLog('');
       loadReports();
+      loadInvestigations();
       loadDecisionLogs();
       alert('Report(s) uploaded successfully!');
     } catch (error) {
@@ -128,12 +149,12 @@ export default function ScrollytellingAdmin() {
 
   const filteredReports = reports.filter((report) => {
     if (filterStatus !== 'all' && report.status !== filterStatus) return false;
-    if (filterAssociation === 'associated' && !report.decisionLogId) return false;
-    if (filterAssociation === 'orphaned' && report.decisionLogId) return false;
+    if (filterAssociation === 'associated' && !report.decisionLogId && !report.investigationId) return false;
+    if (filterAssociation === 'orphaned' && (report.decisionLogId || report.investigationId)) return false;
     return true;
   });
 
-  const orphanedCount = reports.filter((r) => !r.decisionLogId).length;
+  const orphanedCount = reports.filter((r) => !r.decisionLogId && !r.investigationId).length;
 
   return (
     <div>
@@ -163,21 +184,64 @@ export default function ScrollytellingAdmin() {
 
           <div>
             <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
-              Associate with Decision Log (Optional)
+              Association Type
             </label>
             <select
-              value={selectedDecisionLog}
-              onChange={(e) => setSelectedDecisionLog(e.target.value)}
+              value={associationType}
+              onChange={(e) => {
+                setAssociationType(e.target.value as any);
+                setSelectedInvestigation('');
+                setSelectedDecisionLog('');
+              }}
               className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-medium focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]"
             >
-              <option value="">None (Orphaned)</option>
-              {decisionLogs.map((log) => (
-                <option key={log.id} value={log.id}>
-                  {log.title}
-                </option>
-              ))}
+              <option value="none">None (Orphaned)</option>
+              <option value="investigation">Investigation</option>
+              <option value="decision">Decision (Own Scrollytelling)</option>
             </select>
           </div>
+
+          {associationType === 'investigation' && (
+            <div>
+              <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
+                Select Investigation
+              </label>
+              <select
+                value={selectedInvestigation}
+                onChange={(e) => setSelectedInvestigation(e.target.value)}
+                className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-medium focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]"
+                required
+              >
+                <option value="">-- Select Investigation --</option>
+                {investigations.map((inv) => (
+                  <option key={inv.id} value={inv.id}>
+                    {inv.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {associationType === 'decision' && (
+            <div>
+              <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
+                Select Decision Log
+              </label>
+              <select
+                value={selectedDecisionLog}
+                onChange={(e) => setSelectedDecisionLog(e.target.value)}
+                className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-medium focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]"
+                required
+              >
+                <option value="">-- Select Decision --</option>
+                {decisionLogs.map((log) => (
+                  <option key={log.id} value={log.id}>
+                    {log.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
@@ -297,7 +361,7 @@ export default function ScrollytellingAdmin() {
                       Type
                     </th>
                     <th className="text-left p-3 font-bold text-dark text-sm uppercase tracking-wide">
-                      Decision Log
+                      Associated With
                     </th>
                     <th className="text-right p-3 font-bold text-dark text-sm uppercase tracking-wide">
                       Actions
@@ -307,6 +371,7 @@ export default function ScrollytellingAdmin() {
                 <tbody>
                   {filteredReports.map((report) => {
                     const associatedLog = decisionLogs.find((log) => log.id === report.decisionLogId);
+                    const associatedInvestigation = investigations.find((inv) => inv.id === report.investigationId);
 
                     return (
                       <tr key={report.id} className="border-b-2 border-dark hover:bg-bg-light">
@@ -335,8 +400,16 @@ export default function ScrollytellingAdmin() {
                           <span className="text-sm text-dark">{report.reportType || 'Other'}</span>
                         </td>
                         <td className="p-3">
-                          {associatedLog ? (
-                            <span className="text-sm text-dark font-medium">{associatedLog.title}</span>
+                          {associatedInvestigation ? (
+                            <div>
+                              <span className="text-xs text-dark/60">Investigation:</span>
+                              <span className="text-sm text-dark font-medium block">{associatedInvestigation.title}</span>
+                            </div>
+                          ) : associatedLog ? (
+                            <div>
+                              <span className="text-xs text-dark/60">Decision:</span>
+                              <span className="text-sm text-dark font-medium block">{associatedLog.title}</span>
+                            </div>
                           ) : (
                             <span className="text-sm text-alert-orange font-bold flex items-center gap-1">
                               <AlertTriangle size={14} />
