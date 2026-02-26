@@ -24,6 +24,8 @@ export default function ResearchRepositoryAdmin() {
   const [loading, setLoading] = useState(false);
   const [viewingInvestigation, setViewingInvestigation] = useState<Investigation | null>(null);
   const [viewingReports, setViewingReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
+  const [showJsonPaste, setShowJsonPaste] = useState(false);
+  const [jsonText, setJsonText] = useState('');
 
   const [formData, setFormData] = useState<{
     title: string;
@@ -187,75 +189,97 @@ export default function ResearchRepositoryAdmin() {
     }
   };
 
+  const processJSON = (jsonString: string) => {
+    try {
+      const json = JSON.parse(jsonString);
+
+      // Validate required fields
+      const requiredFields = ['title', 'description', 'researchType', 'mathematicalArea', 'status', 'keyFindings', 'methodology', 'author', 'startDate'];
+      const missingFields = requiredFields.filter(field => !json[field]);
+
+      if (missingFields.length > 0) {
+        alert(`Missing required fields: ${missingFields.join(', ')}`);
+        return false;
+      }
+
+      // Validate enum values
+      const validResearchTypes: ResearchType[] = ['Systematic Literature Review', 'Learning Pattern Analysis', 'Content Development', 'AI-Powered Pathways', 'Student Data Analysis', 'Pedagogical Innovation'];
+      const validMathAreas: MathematicalArea[] = ['Elementary Arithmetic', 'Algebra', 'Geometry', 'Calculus', 'Statistics', 'Cross-Domain'];
+      const validStatuses: InvestigationStatus[] = ['In Progress', 'Completed', 'Published'];
+
+      if (!validResearchTypes.includes(json.researchType)) {
+        alert(`Invalid researchType. Must be one of: ${validResearchTypes.join(', ')}`);
+        return false;
+      }
+
+      if (!validMathAreas.includes(json.mathematicalArea)) {
+        alert(`Invalid mathematicalArea. Must be one of: ${validMathAreas.join(', ')}`);
+        return false;
+      }
+
+      if (!validStatuses.includes(json.status)) {
+        alert(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+        return false;
+      }
+
+      // Pre-fill form with JSON data
+      setFormData({
+        title: json.title,
+        description: json.description,
+        researchType: json.researchType,
+        mathematicalArea: json.mathematicalArea,
+        status: json.status,
+        keyFindings: json.keyFindings,
+        methodology: json.methodology,
+        impactMetrics: json.impactMetrics || '',
+        author: json.author,
+        startDate: json.startDate,
+        completionDate: json.completionDate || '',
+        searchKeywords: Array.isArray(json.searchKeywords) ? json.searchKeywords.join(', ') : '',
+        databases: Array.isArray(json.databases) ? json.databases.join(', ') : '',
+        paperCount: json.paperCount?.toString() || '',
+        citations: json.citationLinks || [],
+      });
+
+      setShowForm(true);
+      setEditingId(null);
+      setShowJsonPaste(false);
+      setJsonText('');
+      return true;
+    } catch (error) {
+      console.error('Failed to parse JSON:', error);
+      alert('Invalid JSON format. Please check the syntax and try again.');
+      return false;
+    }
+  };
+
   const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      try {
-        const json = JSON.parse(e.target?.result as string);
-
-        // Validate required fields
-        const requiredFields = ['title', 'description', 'researchType', 'mathematicalArea', 'status', 'keyFindings', 'methodology', 'author', 'startDate'];
-        const missingFields = requiredFields.filter(field => !json[field]);
-
-        if (missingFields.length > 0) {
-          alert(`Missing required fields: ${missingFields.join(', ')}`);
-          return;
-        }
-
-        // Validate enum values
-        const validResearchTypes: ResearchType[] = ['Systematic Literature Review', 'Learning Pattern Analysis', 'Content Development', 'AI-Powered Pathways', 'Student Data Analysis', 'Pedagogical Innovation'];
-        const validMathAreas: MathematicalArea[] = ['Elementary Arithmetic', 'Algebra', 'Geometry', 'Calculus', 'Statistics', 'Cross-Domain'];
-        const validStatuses: InvestigationStatus[] = ['In Progress', 'Completed', 'Published'];
-
-        if (!validResearchTypes.includes(json.researchType)) {
-          alert(`Invalid researchType. Must be one of: ${validResearchTypes.join(', ')}`);
-          return;
-        }
-
-        if (!validMathAreas.includes(json.mathematicalArea)) {
-          alert(`Invalid mathematicalArea. Must be one of: ${validMathAreas.join(', ')}`);
-          return;
-        }
-
-        if (!validStatuses.includes(json.status)) {
-          alert(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
-          return;
-        }
-
-        // Pre-fill form with JSON data
-        setFormData({
-          title: json.title,
-          description: json.description,
-          researchType: json.researchType,
-          mathematicalArea: json.mathematicalArea,
-          status: json.status,
-          keyFindings: json.keyFindings,
-          methodology: json.methodology,
-          impactMetrics: json.impactMetrics || '',
-          author: json.author,
-          startDate: json.startDate,
-          completionDate: json.completionDate || '',
-          searchKeywords: Array.isArray(json.searchKeywords) ? json.searchKeywords.join(', ') : '',
-          databases: Array.isArray(json.databases) ? json.databases.join(', ') : '',
-          paperCount: json.paperCount?.toString() || '',
-          citations: json.citationLinks || [],
-        });
-
-        setShowForm(true);
-        setEditingId(null);
+      const success = processJSON(e.target?.result as string);
+      if (success) {
         alert('JSON loaded successfully! Review the form and click "Create Investigation" to save.');
-      } catch (error) {
-        console.error('Failed to parse JSON:', error);
-        alert('Invalid JSON file. Please check the format and try again.');
       }
     };
 
     reader.readAsText(file);
     // Reset input so same file can be selected again
     event.target.value = '';
+  };
+
+  const handleLoadFromPaste = () => {
+    if (!jsonText.trim()) {
+      alert('Please paste JSON content first');
+      return;
+    }
+
+    const success = processJSON(jsonText);
+    if (success) {
+      alert('JSON loaded successfully! Review the form and click "Create Investigation" to save.');
+    }
   };
 
   return (
@@ -268,6 +292,17 @@ export default function ResearchRepositoryAdmin() {
           </p>
         </div>
         <div className="flex gap-3">
+          <BrutalButton
+            onClick={() => {
+              setShowJsonPaste(!showJsonPaste);
+              setShowForm(false);
+            }}
+            variant="secondary"
+            className="flex items-center gap-2"
+          >
+            <FileText size={20} />
+            {showJsonPaste ? 'Close' : 'Paste JSON'}
+          </BrutalButton>
           <input
             type="file"
             id="json-upload"
@@ -281,10 +316,13 @@ export default function ResearchRepositoryAdmin() {
             className="flex items-center gap-2"
           >
             <Upload size={20} />
-            Import JSON
+            Upload File
           </BrutalButton>
           <BrutalButton
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              setShowForm(!showForm);
+              setShowJsonPaste(false);
+            }}
             variant="primary"
             className="flex items-center gap-2"
           >
@@ -293,6 +331,57 @@ export default function ResearchRepositoryAdmin() {
           </BrutalButton>
         </div>
       </div>
+
+      {/* JSON Paste Area */}
+      {showJsonPaste && (
+        <BrutalCard className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-dark">Paste JSON from Gemini</h2>
+              <p className="text-sm text-dark/70">Copy JSON output from Gemini and paste it below</p>
+            </div>
+            <button
+              onClick={() => setShowJsonPaste(false)}
+              className="p-2 border-2 border-dark bg-white hover:bg-alert-orange transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <textarea
+            value={jsonText}
+            onChange={(e) => setJsonText(e.target.value)}
+            placeholder='Paste your JSON here, e.g.:
+{
+  "title": "Investigation Title",
+  "description": "Description...",
+  "researchType": "Systematic Literature Review",
+  ...
+}'
+            rows={12}
+            className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-mono text-sm focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] resize-y mb-4"
+          />
+
+          <div className="flex gap-3">
+            <BrutalButton
+              onClick={handleLoadFromPaste}
+              variant="primary"
+              disabled={!jsonText.trim()}
+            >
+              <FileText size={20} className="inline mr-2" />
+              Load Investigation from JSON
+            </BrutalButton>
+            <BrutalButton
+              onClick={() => {
+                setJsonText('');
+              }}
+              variant="secondary"
+            >
+              Clear
+            </BrutalButton>
+          </div>
+        </BrutalCard>
+      )}
 
       {/* Form */}
       {showForm && (
