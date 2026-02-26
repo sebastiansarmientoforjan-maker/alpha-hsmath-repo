@@ -42,7 +42,7 @@ async function migrate() {
       }
 
       await updateDecisionLog(log.id, {
-        reportIds: [],
+        reportIds: [] as string[],
         reportCount: 0,
       });
 
