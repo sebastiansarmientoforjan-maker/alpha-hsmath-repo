@@ -175,6 +175,39 @@ Estos 9 campos son **OBLIGATORIOS** y el sistema rechazará el JSON si falta alg
 "description": "Brief context..." // Para scrollytelling reports asociados
 ```
 
+### ⚠️ IMPORTANTE: Relación entre `paperCount` y `citationLinks`
+
+**Regla:**
+- `paperCount` = Número TOTAL de papers/documentos revisados en la investigación
+- `citationLinks` = Las citaciones MÁS RELEVANTES (típicamente 5-10)
+
+**NO deben coincidir necesariamente.**
+
+**Ejemplo correcto:**
+```json
+"paperCount": 38,  // Revisaste 38 papers en total
+"citationLinks": [  // Pero solo citas los 6 más importantes
+  { "title": "Paper clave 1", "url": "..." },
+  { "title": "Paper clave 2", "url": "..." },
+  { "title": "Paper clave 3", "url": "..." },
+  { "title": "Paper clave 4", "url": "..." },
+  { "title": "Paper clave 5", "url": "..." },
+  { "title": "Paper clave 6", "url": "..." }
+]
+```
+
+**Guía de cuántas citaciones incluir:**
+- Si `paperCount` es 5-10: Incluye todas (5-10 citaciones)
+- Si `paperCount` es 10-30: Incluye las 6-8 más relevantes
+- Si `paperCount` es 30-50: Incluye las 8-10 más relevantes
+- Si `paperCount` es 50+: Incluye las 10-12 más relevantes
+
+**Criterio de relevancia para citaciones:**
+1. Documentos oficiales (College Board, institution profiles)
+2. Papers más citados o recientes
+3. Estudios con mayor impacto en tus findings
+4. Fuentes que validan tus [HARD DATA] claims
+
 ---
 
 ## ✅ CHECKLIST DE VALIDACIÓN PRE-OUTPUT
@@ -193,7 +226,8 @@ Antes de devolver el JSON, verifica **TODOS** estos puntos:
 [ ] 9. ¿startDate tiene formato YYYY-MM-DD?
 [ ] 10. Si status="Completed", ¿tiene completionDate?
 [ ] 11. Si researchType="Systematic Literature Review", ¿tiene searchKeywords, databases, paperCount, citationLinks?
-[ ] 12. ¿citationLinks tiene mínimo 3 fuentes con title y url?
+[ ] 12. ¿citationLinks tiene 5-10 citaciones clave (las más relevantes)?
+[ ] 13. ¿citationLinks incluye las fuentes que validan los [HARD DATA] claims?
 [ ] 13. ¿NO hay campos custom como reliabilityScore?
 [ ] 14. ¿El JSON es válido (sin comas finales, comillas correctas)?
 ```
@@ -281,6 +315,28 @@ Antes de devolver el JSON, verifica **TODOS** estos puntos:
   "reliabilityScore": 10.0, // ❌ Campo no existe en el sistema
   "decisionLogProposal": {...} // ❌ No se incluye en el JSON
 }
+```
+
+### ❌ Error 7: Confusión entre paperCount y citationLinks
+```json
+"paperCount": 8,
+"citationLinks": [
+  // Solo 3 citaciones ❌ Muy pocas para paperCount de 8
+]
+```
+
+**Correcto:**
+```json
+"paperCount": 38,  // Total de papers revisados
+"citationLinks": [
+  // 6-8 citaciones de los más relevantes ✓
+  { "title": "Paper clave 1", "url": "..." },
+  { "title": "Paper clave 2", "url": "..." },
+  { "title": "Paper clave 3", "url": "..." },
+  { "title": "Paper clave 4", "url": "..." },
+  { "title": "Paper clave 5", "url": "..." },
+  { "title": "Paper clave 6", "url": "..." }
+]
 ```
 
 ---
@@ -377,6 +433,12 @@ REQUIRED FORMAT FOR methodology:
 - Include: data sources, search criteria, analysis period
 - Minimum 2-3 complete sentences
 
+IMPORTANT - paperCount vs citationLinks:
+- paperCount = TOTAL papers reviewed
+- citationLinks = Most relevant 5-10 citations (not all papers)
+- Guide: 5-10 papers → cite all; 10-30 → cite 6-8 best; 30+ → cite 8-10 best
+- Include sources that validate [HARD DATA] claims
+
 VALIDATION CHECKLIST - Before outputting JSON, verify:
 ✓ All 9 required fields present
 ✓ ENUMs match exactly (case-sensitive)
@@ -385,7 +447,8 @@ VALIDATION CHECKLIST - Before outputting JSON, verify:
 ✓ author is exactly "Sebastian Sarmiento"
 ✓ startDate is YYYY-MM-DD format
 ✓ If researchType="Systematic Literature Review", include: searchKeywords, databases, paperCount, citationLinks
-✓ citationLinks has minimum 3 sources with title and url
+✓ citationLinks has 5-10 key sources (most relevant, not all papers)
+✓ citationLinks includes sources validating [HARD DATA] claims
 ✓ NO custom fields like reliabilityScore or decisionLogProposal
 ✓ Valid JSON syntax (no trailing commas)
 
@@ -394,8 +457,17 @@ When given research materials, extract information and format as specified. NEVE
 
 ---
 
-## 📊 RESUMEN DE CAMBIOS v2.0
+## 📊 RESUMEN DE CAMBIOS
 
+### v2.1 (2026-02-26 - Update)
+**Nueva sección:** Clarificación de relación paperCount vs citationLinks
+- ✅ paperCount = total de papers revisados
+- ✅ citationLinks = 5-10 más relevantes (no todos)
+- ✅ Guía de cuántas citaciones incluir según paperCount
+- ✅ Criterios de relevancia para seleccionar citaciones
+- ✅ Error común #7 agregado
+
+### v2.0 (2026-02-26 - Initial)
 **Mejoras vs v1.0:**
 1. ✅ Checklist de validación explícita con 14 puntos
 2. ✅ Sección dedicada a errores comunes con ejemplos
@@ -406,6 +478,6 @@ When given research materials, extract information and format as specified. NEVE
 
 ---
 
-**Versión:** 2.0
+**Versión:** 2.1
 **Fecha:** 2026-02-26
 **Autor:** Claude Sonnet 4.5 + Sebastian Sarmiento
