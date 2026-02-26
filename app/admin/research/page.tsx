@@ -14,7 +14,7 @@ import {
 } from '@/lib/investigations';
 import { getReportsByInvestigation } from '@/lib/scrollytellingReports';
 import { ScrollytellingReport } from '@/lib/uploadHtmlReport';
-import { Edit, Trash2, Plus, Save, X, FileText, Eye } from 'lucide-react';
+import { Edit, Trash2, Plus, Save, X, FileText, Eye, Upload } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 
 export default function ResearchRepositoryAdmin() {
@@ -187,6 +187,77 @@ export default function ResearchRepositoryAdmin() {
     }
   };
 
+  const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(e.target?.result as string);
+
+        // Validate required fields
+        const requiredFields = ['title', 'description', 'researchType', 'mathematicalArea', 'status', 'keyFindings', 'methodology', 'author', 'startDate'];
+        const missingFields = requiredFields.filter(field => !json[field]);
+
+        if (missingFields.length > 0) {
+          alert(`Missing required fields: ${missingFields.join(', ')}`);
+          return;
+        }
+
+        // Validate enum values
+        const validResearchTypes: ResearchType[] = ['Systematic Literature Review', 'Learning Pattern Analysis', 'Content Development', 'AI-Powered Pathways', 'Student Data Analysis', 'Pedagogical Innovation'];
+        const validMathAreas: MathematicalArea[] = ['Elementary Arithmetic', 'Algebra', 'Geometry', 'Calculus', 'Statistics', 'Cross-Domain'];
+        const validStatuses: InvestigationStatus[] = ['In Progress', 'Completed', 'Published'];
+
+        if (!validResearchTypes.includes(json.researchType)) {
+          alert(`Invalid researchType. Must be one of: ${validResearchTypes.join(', ')}`);
+          return;
+        }
+
+        if (!validMathAreas.includes(json.mathematicalArea)) {
+          alert(`Invalid mathematicalArea. Must be one of: ${validMathAreas.join(', ')}`);
+          return;
+        }
+
+        if (!validStatuses.includes(json.status)) {
+          alert(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+          return;
+        }
+
+        // Pre-fill form with JSON data
+        setFormData({
+          title: json.title,
+          description: json.description,
+          researchType: json.researchType,
+          mathematicalArea: json.mathematicalArea,
+          status: json.status,
+          keyFindings: json.keyFindings,
+          methodology: json.methodology,
+          impactMetrics: json.impactMetrics || '',
+          author: json.author,
+          startDate: json.startDate,
+          completionDate: json.completionDate || '',
+          searchKeywords: Array.isArray(json.searchKeywords) ? json.searchKeywords.join(', ') : '',
+          databases: Array.isArray(json.databases) ? json.databases.join(', ') : '',
+          paperCount: json.paperCount?.toString() || '',
+          citations: json.citationLinks || [],
+        });
+
+        setShowForm(true);
+        setEditingId(null);
+        alert('JSON loaded successfully! Review the form and click "Create Investigation" to save.');
+      } catch (error) {
+        console.error('Failed to parse JSON:', error);
+        alert('Invalid JSON file. Please check the format and try again.');
+      }
+    };
+
+    reader.readAsText(file);
+    // Reset input so same file can be selected again
+    event.target.value = '';
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
@@ -196,14 +267,31 @@ export default function ResearchRepositoryAdmin() {
             Document investigations, analyze learning patterns, and track research findings
           </p>
         </div>
-        <BrutalButton
-          onClick={() => setShowForm(!showForm)}
-          variant="primary"
-          className="flex items-center gap-2"
-        >
-          {showForm ? <X size={20} /> : <Plus size={20} />}
-          {showForm ? 'Cancel' : 'New Investigation'}
-        </BrutalButton>
+        <div className="flex gap-3">
+          <input
+            type="file"
+            id="json-upload"
+            accept=".json"
+            onChange={handleImportJSON}
+            className="hidden"
+          />
+          <BrutalButton
+            onClick={() => document.getElementById('json-upload')?.click()}
+            variant="secondary"
+            className="flex items-center gap-2"
+          >
+            <Upload size={20} />
+            Import JSON
+          </BrutalButton>
+          <BrutalButton
+            onClick={() => setShowForm(!showForm)}
+            variant="primary"
+            className="flex items-center gap-2"
+          >
+            {showForm ? <X size={20} /> : <Plus size={20} />}
+            {showForm ? 'Cancel' : 'New Investigation'}
+          </BrutalButton>
+        </div>
       </div>
 
       {/* Form */}
