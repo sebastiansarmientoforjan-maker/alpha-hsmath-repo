@@ -1,6 +1,6 @@
-# Living Research Repository
+# HS Math Documentation & Analysis Hub
 
-A dynamic ecosystem for documenting pedagogical decisions, showcasing real-time telemetry, and hosting immersive research reports through scrollytelling for the Alpha Math program.
+A collaborative platform for documenting, analyzing, and debating pedagogical decisions in High School Mathematics for Alpha School through evidence-based discussions and immersive reports.
 
 ## Features
 

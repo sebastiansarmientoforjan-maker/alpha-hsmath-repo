@@ -82,8 +82,8 @@ export default function Gallery() {
       <div className="border-b-4 border-dark bg-white p-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-dark">Alpha Math Research Gallery</h1>
-            <p className="text-dark/70">Living Research Repository</p>
+            <h1 className="text-3xl font-bold text-dark">HS Math Research Gallery</h1>
+            <p className="text-dark/70">Documentation & Analysis Hub</p>
           </div>
           <Link
             href="/admin"

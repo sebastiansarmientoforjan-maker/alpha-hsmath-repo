@@ -6,7 +6,7 @@ export default function AdminDashboard() {
     <div>
       <h1 className="text-4xl font-bold text-dark mb-2">Admin Dashboard</h1>
       <p className="text-dark/70 mb-8">
-        Living Research Repository - Content Management System
+        HS Math Documentation & Analysis Hub - Content Management System
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

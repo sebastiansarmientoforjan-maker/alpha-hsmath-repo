@@ -10,7 +10,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-dark">Alpha Math</h1>
-            <p className="text-sm text-dark/70">Living Research Repository</p>
+            <p className="text-sm text-dark/70">HS Math Documentation & Analysis Hub</p>
           </div>
           <div className="flex gap-4">
             <Link href="/gallery">
@@ -27,11 +27,11 @@ export default function Home() {
       <main className="max-w-6xl mx-auto px-6 py-16">
         <div className="mb-16">
           <h2 className="text-5xl font-bold text-dark mb-4">
-            Living Research Repository
+            HS Math Documentation & Analysis Hub
           </h2>
           <p className="text-xl text-dark/70 max-w-2xl font-serif">
-            A dynamic ecosystem documenting pedagogical decisions, showcasing real-time
-            telemetry, and hosting immersive research reports through scrollytelling.
+            A collaborative platform for documenting, analyzing, and debating pedagogical decisions
+            in High School Mathematics for Alpha School through evidence-based discussions and immersive reports.
           </p>
         </div>
 
@@ -101,11 +101,12 @@ export default function Home() {
 
         {/* Info Section */}
         <div className="mt-12 pt-12 border-t-4 border-dark">
-          <h3 className="text-2xl font-bold text-dark mb-4">About This Repository</h3>
+          <h3 className="text-2xl font-bold text-dark mb-4">About This Hub</h3>
           <div className="font-serif text-dark/80 space-y-3">
             <p>
-              The Living Research Repository is designed for the Alpha Math program to
-              create a transparent, evidence-based record of instructional evolution.
+              The HS Math Documentation & Analysis Hub is designed for Alpha School's High School
+              Mathematics program to create a transparent, evidence-based record of pedagogical
+              decisions, facilitate meaningful debate, and analyze the evolution of instructional strategies.
             </p>
             <p>
               This platform combines Swiss design principles with neobrutalist aesthetics

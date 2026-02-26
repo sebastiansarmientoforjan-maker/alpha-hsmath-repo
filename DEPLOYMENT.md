@@ -1,6 +1,6 @@
-# Deployment Guide - Living Research Repository
+# Deployment Guide - HS Math Documentation & Analysis Hub
 
-This guide will help you deploy the Alpha Math Research Repository to Vercel.
+This guide will help you deploy the HS Math Documentation & Analysis Hub for Alpha School to Vercel.
 
 ## Prerequisites
 
