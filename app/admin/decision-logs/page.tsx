@@ -9,11 +9,17 @@ import {
   getAllDecisionLogs,
   DecisionLog,
 } from '@/lib/decisionLogs';
+import { getAllInvestigations, Investigation } from '@/lib/investigations';
 import { getAllReports, getReportsByDecisionLog } from '@/lib/scrollytellingReports';
 import { attachReportToDecision, detachReportFromDecision } from '@/lib/decisionLogReports';
+import {
+  linkInvestigationToDecision,
+  unlinkInvestigationFromDecision,
+  getInvestigationsForDecision,
+} from '@/lib/decisionInvestigations';
 import { ScrollytellingReport } from '@/lib/uploadHtmlReport';
 import { DecisionLogDetail } from '@/components/ui/DecisionLogDetail';
-import { Edit, Trash2, Plus, Save, X, FileText, Link as LinkIcon } from 'lucide-react';
+import { Edit, Trash2, Plus, Save, X, FileText, Link as LinkIcon, Microscope } from 'lucide-react';
 
 export default function DecisionLogsAdmin() {
   const [logs, setLogs] = useState<DecisionLog[]>([]);
@@ -25,6 +31,11 @@ export default function DecisionLogsAdmin() {
   const [allReports, setAllReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
   const [showAttachModal, setShowAttachModal] = useState<string | null>(null);
 
+  // New: Investigation linking
+  const [investigations, setInvestigations] = useState<Investigation[]>([]);
+  const [linkedInvestigations, setLinkedInvestigations] = useState<(Investigation & { id: string })[]>([]);
+  const [showLinkInvestigationModal, setShowLinkInvestigationModal] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     title: '',
     taxonomy: 'Pedagogical Adjustment' as DecisionLog['taxonomy'],
@@ -32,11 +43,13 @@ export default function DecisionLogsAdmin() {
     rationale: '',
     evidence_url: '',
     author: '',
+    schoolContext: '',
   });
 
   useEffect(() => {
     loadLogs();
     loadAllReports();
+    loadInvestigations();
   }, []);
 
   const loadLogs = async () => {
@@ -57,6 +70,15 @@ export default function DecisionLogsAdmin() {
     }
   };
 
+  const loadInvestigations = async () => {
+    try {
+      const data = await getAllInvestigations();
+      setInvestigations(data);
+    } catch (error) {
+      console.error('Failed to load investigations:', error);
+    }
+  };
+
   const loadLogReports = async (logId: string) => {
     try {
       const data = await getReportsByDecisionLog(logId);
@@ -70,6 +92,44 @@ export default function DecisionLogsAdmin() {
     setSelectedLog(log);
     if (log.id) {
       await loadLogReports(log.id);
+      await loadLinkedInvestigations(log.id);
+    }
+  };
+
+  const loadLinkedInvestigations = async (logId: string) => {
+    try {
+      const data = await getInvestigationsForDecision(logId);
+      setLinkedInvestigations(data);
+    } catch (error) {
+      console.error('Failed to load linked investigations:', error);
+    }
+  };
+
+  const handleLinkInvestigation = async (logId: string, investigationId: string) => {
+    try {
+      await linkInvestigationToDecision(logId, investigationId);
+      await loadLogs();
+      setShowLinkInvestigationModal(null);
+      alert('Investigation linked successfully!');
+    } catch (error) {
+      console.error('Failed to link investigation:', error);
+      alert('Failed to link investigation. Please try again.');
+    }
+  };
+
+  const handleUnlinkInvestigation = async (logId: string, investigationId: string) => {
+    if (!confirm('Are you sure you want to unlink this investigation?')) return;
+
+    try {
+      await unlinkInvestigationFromDecision(logId, investigationId);
+      await loadLogs();
+      if (selectedLog?.id === logId) {
+        await loadLinkedInvestigations(logId);
+      }
+      alert('Investigation unlinked successfully!');
+    } catch (error) {
+      console.error('Failed to unlink investigation:', error);
+      alert('Failed to unlink investigation. Please try again.');
     }
   };
 
@@ -110,6 +170,7 @@ export default function DecisionLogsAdmin() {
       rationale: '',
       evidence_url: '',
       author: '',
+      schoolContext: '',
     });
     setEditingId(null);
     setShowForm(false);
@@ -143,6 +204,7 @@ export default function DecisionLogsAdmin() {
       rationale: log.rationale,
       evidence_url: log.evidence_url || '',
       author: log.author,
+      schoolContext: log.schoolContext || '',
     });
     setEditingId(log.id!);
     setShowForm(true);
@@ -219,6 +281,60 @@ export default function DecisionLogsAdmin() {
                           className="ml-4"
                         >
                           Attach
+                        </BrutalButton>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Link Investigation Modal */}
+      {showLinkInvestigationModal && (
+        <div className="fixed inset-0 bg-dark/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border-4 border-dark max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="bg-cool-blue border-b-4 border-dark p-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-dark">Link Investigation</h3>
+              <button
+                onClick={() => setShowLinkInvestigationModal(null)}
+                className="p-2 border-2 border-dark bg-white hover:bg-alert-orange transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              {investigations.length === 0 ? (
+                <p className="text-dark/60 text-center py-8">
+                  No investigations available. Create investigations in the Research Repository first.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {investigations.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="border-4 border-dark bg-white p-4 hover:bg-bg-light transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-bold text-dark">{inv.title}</h4>
+                          <div className="flex gap-2 mt-2 text-xs">
+                            <span className="px-2 py-1 border-2 border-dark bg-cool-blue font-bold">
+                              {inv.researchType}
+                            </span>
+                            <span className="px-2 py-1 border-2 border-dark bg-bg-light font-bold">
+                              {inv.mathematicalArea}
+                            </span>
+                          </div>
+                        </div>
+                        <BrutalButton
+                          onClick={() => handleLinkInvestigation(showLinkInvestigationModal, inv.id!)}
+                          variant="primary"
+                          className="ml-4"
+                        >
+                          Link
                         </BrutalButton>
                       </div>
                     </div>
