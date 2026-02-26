@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { BrutalCard } from '@/components/ui';
-import { FileText, Database, TrendingUp, AlertTriangle, BarChart3 } from 'lucide-react';
+import { FileText, Database, TrendingUp, AlertTriangle, BarChart3, Microscope } from 'lucide-react';
 import { getAllReports } from '@/lib/scrollytellingReports';
 import { getAllDecisionLogs } from '@/lib/decisionLogs';
+import { getAllInvestigations } from '@/lib/investigations';
 
 export default function AdminDashboard() {
   const [totalReports, setTotalReports] = useState(0);
   const [totalDecisionLogs, setTotalDecisionLogs] = useState(0);
+  const [totalInvestigations, setTotalInvestigations] = useState(0);
   const [activeDebates, setActiveDebates] = useState(0);
   const [orphanedReports, setOrphanedReports] = useState(0);
   const [reportsPerDecision, setReportsPerDecision] = useState(0);
@@ -20,27 +22,29 @@ export default function AdminDashboard() {
 
   const loadStatistics = async () => {
     try {
-      const [reports, logs] = await Promise.all([
+      const [reports, logs, investigations] = await Promise.all([
         getAllReports(),
         getAllDecisionLogs(),
+        getAllInvestigations(),
       ]);
 
       setTotalReports(reports.length);
       setTotalDecisionLogs(logs.length);
+      setTotalInvestigations(investigations.length);
 
       // Count active debates
       const debates = logs.filter((log) => log.status === 'Under Debate').length;
       setActiveDebates(debates);
 
-      // Count orphaned reports
-      const orphaned = reports.filter((report) => !report.decisionLogId).length;
+      // Count orphaned reports (no investigation AND no decision)
+      const orphaned = reports.filter((report) => !report.decisionLogId && !report.investigationId).length;
       setOrphanedReports(orphaned);
 
       // Calculate average reports per decision
-      const logsWithReports = logs.filter((log) => log.reportCount > 0);
+      const logsWithReports = logs.filter((log) => (log.reportCount ?? 0) > 0);
       const avgReports =
         logsWithReports.length > 0
-          ? (logsWithReports.reduce((sum, log) => sum + log.reportCount, 0) /
+          ? (logsWithReports.reduce((sum, log) => sum + (log.reportCount ?? 0), 0) /
               logsWithReports.length).toFixed(1)
           : 0;
       setReportsPerDecision(Number(avgReports));
@@ -64,7 +68,19 @@ export default function AdminDashboard() {
         </BrutalCard>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <BrutalCard>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-wide text-dark/60 font-bold mb-1">
+                    Investigations
+                  </p>
+                  <p className="text-3xl font-bold text-dark">{totalInvestigations}</p>
+                </div>
+                <Microscope size={32} className="text-cool-blue" />
+              </div>
+            </BrutalCard>
+
             <BrutalCard>
               <div className="flex items-start justify-between">
                 <div>
@@ -159,16 +175,20 @@ export default function AdminDashboard() {
             and add your Firebase credentials.
           </p>
           <p>
-            <strong className="text-dark">2. Create Decision Logs:</strong> Document pedagogical
-            decisions and experimental results first. These will be the primary entities in your hub.
+            <strong className="text-dark">2. Document Investigations:</strong> Use the Research Repository
+            to track learning pattern analysis, content development, and pedagogical innovations.
           </p>
           <p>
-            <strong className="text-dark">3. Upload Reports:</strong> Use the Scrollytelling
-            Reports section to upload HTML files and associate them with decision logs.
+            <strong className="text-dark">3. Upload Reports:</strong> Associate Scrollytelling Reports
+            with investigations (as evidence) or with decisions (as their own documentation).
           </p>
           <p>
-            <strong className="text-dark">4. Share Results:</strong> Published reports associated with
-            decision logs will appear in the public Gallery view for your team and stakeholders.
+            <strong className="text-dark">4. Make Decisions:</strong> Create Decision Logs and link them
+            to relevant investigations. Add school context for decisions based on student cases.
+          </p>
+          <p>
+            <strong className="text-dark">5. Share Results:</strong> Published content appears in the
+            Gallery for stakeholders to explore investigations and understand decisions.
           </p>
         </div>
       </BrutalCard>

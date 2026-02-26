@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "migrate": "ts-node --project tsconfig.json scripts/migrateExistingData.ts"
+    "migrate": "ts-node --project tsconfig.json scripts/migrateExistingData.ts",
+    "migrate:research": "ts-node --project tsconfig.json scripts/migrateToResearchFirst.ts"
   },
   "dependencies": {
     "firebase": "^12.9.0",
