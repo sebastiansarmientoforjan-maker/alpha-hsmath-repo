@@ -108,10 +108,14 @@ export default function Home() {
               Mathematics program to create a transparent, evidence-based record of pedagogical
               decisions, facilitate meaningful debate, and analyze the evolution of instructional strategies.
             </p>
-            <p className="text-sm text-dark/60 mt-6">
-              Built with Next.js 14, Firebase, and TailwindCSS. Deployed on Vercel.
-            </p>
           </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-12 pt-6 border-t-4 border-dark text-center">
+          <p className="text-sm font-bold text-dark/70">
+            HS Math DRI Alpha School Sebastian Sarmiento
+          </p>
         </div>
       </main>
     </div>
