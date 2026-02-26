@@ -13,6 +13,7 @@ import {
 import { db } from './firebase';
 
 export type ResearchType =
+  | 'Systematic Literature Review'
   | 'Learning Pattern Analysis'
   | 'Content Development'
   | 'AI-Powered Pathways'
@@ -39,6 +40,11 @@ export interface Investigation {
   keyFindings: string; // Main discoveries
   methodology: string; // How the analysis was done
   impactMetrics?: string; // e.g., "2x acceleration in concept mastery"
+  // Systematic Literature Review specific fields
+  searchKeywords?: string[]; // Keywords used in literature search
+  databases?: string[]; // Databases searched (Google Scholar, ERIC, JSTOR, etc.)
+  paperCount?: number; // Number of papers reviewed
+  citationLinks?: Array<{ title: string; url: string; authors?: string }>; // Key papers
   scrollytellingReportIds: string[]; // Multiple reports
   reportCount: number;
   author: string;

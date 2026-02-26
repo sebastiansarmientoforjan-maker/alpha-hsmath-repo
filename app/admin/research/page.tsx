@@ -37,10 +37,15 @@ export default function ResearchRepositoryAdmin() {
     author: string;
     startDate: string;
     completionDate: string;
+    // Systematic Literature Review fields
+    searchKeywords: string;
+    databases: string;
+    paperCount: string;
+    citations: Array<{ title: string; url: string; authors?: string }>;
   }>({
     title: '',
     description: '',
-    researchType: 'Learning Pattern Analysis',
+    researchType: 'Systematic Literature Review',
     mathematicalArea: 'Algebra',
     status: 'In Progress',
     keyFindings: '',
@@ -49,6 +54,10 @@ export default function ResearchRepositoryAdmin() {
     author: '',
     startDate: new Date().toISOString().split('T')[0],
     completionDate: '',
+    searchKeywords: '',
+    databases: '',
+    paperCount: '',
+    citations: [],
   });
 
   useEffect(() => {
@@ -68,7 +77,7 @@ export default function ResearchRepositoryAdmin() {
     setFormData({
       title: '',
       description: '',
-      researchType: 'Learning Pattern Analysis',
+      researchType: 'Systematic Literature Review',
       mathematicalArea: 'Algebra',
       status: 'In Progress',
       keyFindings: '',
@@ -77,6 +86,10 @@ export default function ResearchRepositoryAdmin() {
       author: '',
       startDate: new Date().toISOString().split('T')[0],
       completionDate: '',
+      searchKeywords: '',
+      databases: '',
+      paperCount: '',
+      citations: [],
     });
     setEditingId(null);
     setShowForm(false);
@@ -92,18 +105,34 @@ export default function ResearchRepositoryAdmin() {
         ? Timestamp.fromDate(new Date(formData.completionDate))
         : undefined;
 
+      // Process systematic review fields
+      const isSystematicReview = formData.researchType === 'Systematic Literature Review';
+      const systematicReviewData = isSystematicReview ? {
+        searchKeywords: formData.searchKeywords ? formData.searchKeywords.split(',').map(k => k.trim()).filter(Boolean) : undefined,
+        databases: formData.databases ? formData.databases.split(',').map(d => d.trim()).filter(Boolean) : undefined,
+        paperCount: formData.paperCount ? parseInt(formData.paperCount) : undefined,
+        citationLinks: formData.citations.length > 0 ? formData.citations : undefined,
+      } : {};
+
+      const investigationData = {
+        title: formData.title,
+        description: formData.description,
+        researchType: formData.researchType,
+        mathematicalArea: formData.mathematicalArea,
+        status: formData.status,
+        keyFindings: formData.keyFindings,
+        methodology: formData.methodology,
+        impactMetrics: formData.impactMetrics || undefined,
+        author: formData.author,
+        startDate,
+        completionDate,
+        ...systematicReviewData,
+      };
+
       if (editingId) {
-        await updateInvestigation(editingId, {
-          ...formData,
-          startDate,
-          completionDate,
-        });
+        await updateInvestigation(editingId, investigationData);
       } else {
-        await createInvestigation({
-          ...formData,
-          startDate,
-          completionDate,
-        });
+        await createInvestigation(investigationData);
       }
       await loadInvestigations();
       resetForm();
@@ -130,6 +159,10 @@ export default function ResearchRepositoryAdmin() {
       completionDate: investigation.completionDate
         ? new Date(investigation.completionDate.seconds * 1000).toISOString().split('T')[0]
         : '',
+      searchKeywords: investigation.searchKeywords?.join(', ') || '',
+      databases: investigation.databases?.join(', ') || '',
+      paperCount: investigation.paperCount?.toString() || '',
+      citations: investigation.citationLinks || [],
     });
     setEditingId(investigation.id!);
     setShowForm(true);
@@ -216,6 +249,7 @@ export default function ResearchRepositoryAdmin() {
                   className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-medium focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]"
                   required
                 >
+                  <option value="Systematic Literature Review">Systematic Literature Review</option>
                   <option value="Learning Pattern Analysis">Learning Pattern Analysis</option>
                   <option value="Content Development">Content Development</option>
                   <option value="AI-Powered Pathways">AI-Powered Pathways</option>
@@ -315,6 +349,113 @@ export default function ResearchRepositoryAdmin() {
               value={formData.impactMetrics}
               onChange={(e) => setFormData({ ...formData, impactMetrics: e.target.value })}
             />
+
+            {/* Systematic Literature Review Fields */}
+            {formData.researchType === 'Systematic Literature Review' && (
+              <div className="border-4 border-cool-blue bg-cool-blue/10 p-4 space-y-4">
+                <h3 className="text-lg font-bold text-dark mb-2">Systematic Review Details</h3>
+
+                <BrutalInput
+                  label="Search Keywords (comma-separated)"
+                  placeholder="e.g., algebra learning, conceptual understanding, 8th grade"
+                  value={formData.searchKeywords}
+                  onChange={(e) => setFormData({ ...formData, searchKeywords: e.target.value })}
+                />
+
+                <BrutalInput
+                  label="Databases Searched (comma-separated)"
+                  placeholder="e.g., Google Scholar, ERIC, JSTOR, ResearchGate"
+                  value={formData.databases}
+                  onChange={(e) => setFormData({ ...formData, databases: e.target.value })}
+                />
+
+                <BrutalInput
+                  label="Number of Papers Reviewed"
+                  type="number"
+                  placeholder="e.g., 45"
+                  value={formData.paperCount}
+                  onChange={(e) => setFormData({ ...formData, paperCount: e.target.value })}
+                />
+
+                <div>
+                  <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
+                    Key Citations
+                  </label>
+                  <div className="space-y-2 mb-2">
+                    {formData.citations.map((citation, index) => (
+                      <div key={index} className="flex gap-2 items-start p-2 border-2 border-dark bg-white">
+                        <div className="flex-1 text-sm">
+                          <p className="font-bold text-dark">{citation.title}</p>
+                          {citation.authors && <p className="text-dark/60 text-xs">{citation.authors}</p>}
+                          <a href={citation.url} target="_blank" rel="noopener noreferrer" className="text-cool-blue text-xs underline">
+                            {citation.url}
+                          </a>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newCitations = formData.citations.filter((_, i) => i !== index);
+                            setFormData({ ...formData, citations: newCitations });
+                          }}
+                          className="p-1 border-2 border-dark bg-alert-orange hover:bg-alert-orange/80"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-12 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Paper title"
+                      id="citation-title"
+                      className="col-span-5 border-2 border-dark px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Authors (optional)"
+                      id="citation-authors"
+                      className="col-span-3 border-2 border-dark px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="url"
+                      placeholder="URL"
+                      id="citation-url"
+                      className="col-span-3 border-2 border-dark px-2 py-1 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const titleInput = document.getElementById('citation-title') as HTMLInputElement;
+                        const authorsInput = document.getElementById('citation-authors') as HTMLInputElement;
+                        const urlInput = document.getElementById('citation-url') as HTMLInputElement;
+
+                        if (titleInput.value && urlInput.value) {
+                          setFormData({
+                            ...formData,
+                            citations: [
+                              ...formData.citations,
+                              {
+                                title: titleInput.value,
+                                authors: authorsInput.value,
+                                url: urlInput.value,
+                              },
+                            ],
+                          });
+                          titleInput.value = '';
+                          authorsInput.value = '';
+                          urlInput.value = '';
+                        }
+                      }}
+                      className="col-span-1 p-1 border-2 border-dark bg-cool-blue hover:bg-cool-blue/80"
+                      title="Add citation"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <BrutalInput
               label="Author"
@@ -477,6 +618,72 @@ export default function ResearchRepositoryAdmin() {
                 <div>
                   <h3 className="text-lg font-bold text-dark mb-2">Impact Metrics</h3>
                   <p className="text-dark font-serif">{viewingInvestigation.impactMetrics}</p>
+                </div>
+              )}
+
+              {/* Systematic Literature Review Details */}
+              {viewingInvestigation.researchType === 'Systematic Literature Review' && (
+                <div className="border-4 border-cool-blue bg-cool-blue/10 p-4 space-y-4">
+                  <h3 className="text-lg font-bold text-dark mb-2">Systematic Review Details</h3>
+
+                  {viewingInvestigation.searchKeywords && viewingInvestigation.searchKeywords.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-bold text-dark mb-1 uppercase tracking-wide">Search Keywords</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {viewingInvestigation.searchKeywords.map((keyword, index) => (
+                          <span key={index} className="px-2 py-1 border-2 border-dark bg-white text-sm font-medium">
+                            {keyword}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {viewingInvestigation.databases && viewingInvestigation.databases.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-bold text-dark mb-1 uppercase tracking-wide">Databases Searched</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {viewingInvestigation.databases.map((db, index) => (
+                          <span key={index} className="px-2 py-1 border-2 border-dark bg-white text-sm font-medium">
+                            {db}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {viewingInvestigation.paperCount && (
+                    <div>
+                      <h4 className="text-sm font-bold text-dark mb-1 uppercase tracking-wide">Papers Reviewed</h4>
+                      <p className="text-2xl font-bold text-dark">{viewingInvestigation.paperCount}</p>
+                    </div>
+                  )}
+
+                  {viewingInvestigation.citationLinks && viewingInvestigation.citationLinks.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-bold text-dark mb-2 uppercase tracking-wide">
+                        Key Citations ({viewingInvestigation.citationLinks.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {viewingInvestigation.citationLinks.map((citation, index) => (
+                          <div key={index} className="border-2 border-dark bg-white p-3">
+                            <p className="font-bold text-dark mb-1">{citation.title}</p>
+                            {citation.authors && (
+                              <p className="text-sm text-dark/60 mb-1">{citation.authors}</p>
+                            )}
+                            <a
+                              href={citation.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-cool-blue hover:underline"
+                            >
+                              {citation.url} →
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

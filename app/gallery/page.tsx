@@ -226,6 +226,63 @@ export default function Gallery() {
                         <p className="text-dark font-bold">📈 {selectedInvestigation.impactMetrics}</p>
                       </div>
                     )}
+                    {/* Systematic Literature Review Details */}
+                    {selectedInvestigation.researchType === 'Systematic Literature Review' && (
+                      <div className="border-4 border-cool-blue bg-cool-blue/10 p-4 space-y-3">
+                        <h3 className="text-sm font-bold text-dark uppercase mb-2">Systematic Review Details</h3>
+
+                        {selectedInvestigation.searchKeywords && selectedInvestigation.searchKeywords.length > 0 && (
+                          <div>
+                            <p className="text-xs font-bold text-dark mb-1 uppercase">Search Keywords</p>
+                            <div className="flex flex-wrap gap-1">
+                              {selectedInvestigation.searchKeywords.map((keyword, index) => (
+                                <span key={index} className="px-2 py-0.5 border-2 border-dark bg-white text-xs font-medium">
+                                  {keyword}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedInvestigation.databases && selectedInvestigation.databases.length > 0 && (
+                          <div>
+                            <p className="text-xs font-bold text-dark mb-1 uppercase">Databases</p>
+                            <p className="text-sm text-dark">{selectedInvestigation.databases.join(', ')}</p>
+                          </div>
+                        )}
+
+                        {selectedInvestigation.paperCount && (
+                          <div>
+                            <p className="text-xs font-bold text-dark mb-1 uppercase">Papers Reviewed</p>
+                            <p className="text-xl font-bold text-dark">{selectedInvestigation.paperCount}</p>
+                          </div>
+                        )}
+
+                        {selectedInvestigation.citationLinks && selectedInvestigation.citationLinks.length > 0 && (
+                          <div>
+                            <p className="text-xs font-bold text-dark mb-2 uppercase">Key Citations</p>
+                            <div className="space-y-2">
+                              {selectedInvestigation.citationLinks.map((citation, index) => (
+                                <div key={index} className="border-2 border-dark bg-white p-2">
+                                  <p className="font-bold text-dark text-sm">{citation.title}</p>
+                                  {citation.authors && (
+                                    <p className="text-xs text-dark/60">{citation.authors}</p>
+                                  )}
+                                  <a
+                                    href={citation.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-cool-blue hover:underline"
+                                  >
+                                    View Paper →
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div>
                       <h3 className="text-sm font-bold text-dark uppercase mb-2">
                         Reports ({investigationReports.length})
