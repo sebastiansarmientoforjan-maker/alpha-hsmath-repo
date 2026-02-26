@@ -125,7 +125,7 @@ export function DecisionLogSidebar({
                       >
                         {log.status}
                       </span>
-                      {log.reportCount > 0 && (
+                      {(log.reportCount ?? 0) > 0 && (
                         <span className="flex items-center gap-1 text-dark/60">
                           <FileText size={12} />
                           {log.reportCount}
