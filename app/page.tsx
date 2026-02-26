@@ -29,7 +29,7 @@ export default function Home() {
           <h2 className="text-5xl font-bold text-dark mb-4">
             HS Math Documentation & Analysis Hub
           </h2>
-          <p className="text-xl text-dark/70 max-w-2xl font-serif">
+          <p className="text-xl text-dark/70 font-serif">
             A collaborative platform for documenting, analyzing, and debating pedagogical decisions
             in High School Mathematics for Alpha School through evidence-based discussions and immersive reports.
           </p>
