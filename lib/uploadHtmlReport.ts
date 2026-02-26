@@ -2,6 +2,43 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { storage, db } from './firebase';
 
+// Extract metadata from HTML content
+export function extractMetadataFromHTML(htmlContent: string): {
+  title: string;
+  description: string;
+  tags: string[];
+} {
+  // Create a temporary DOM parser
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlContent, 'text/html');
+
+  // Extract title (try multiple sources)
+  let title =
+    doc.querySelector('title')?.textContent ||
+    doc.querySelector('h1')?.textContent ||
+    doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
+    'Untitled Report';
+
+  title = title.trim();
+
+  // Extract description (try multiple sources)
+  let description =
+    doc.querySelector('meta[name="description"]')?.getAttribute('content') ||
+    doc.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
+    doc.querySelector('p')?.textContent ||
+    '';
+
+  description = description.trim().substring(0, 500); // Limit to 500 chars
+
+  // Extract tags from meta keywords if available
+  const keywordsContent = doc.querySelector('meta[name="keywords"]')?.getAttribute('content');
+  const tags = keywordsContent
+    ? keywordsContent.split(',').map(tag => tag.trim()).filter(Boolean)
+    : [];
+
+  return { title, description, tags };
+}
+
 export interface ScrollytellingReport {
   title: string;
   filename: string;
@@ -57,6 +94,53 @@ export async function uploadHtmlReport(
     return docRef.id;
   } catch (error) {
     console.error('Error uploading HTML report:', error);
+    throw error;
+  }
+}
+
+export async function uploadHtmlFromString(
+  htmlContent: string,
+  title: string,
+  tags: string[] = [],
+  status: 'Published' | 'Archived' | 'Draft' = 'Draft',
+  investigationId: string | null = null,
+  decisionLogId: string | null = null,
+  description: string = '',
+  reportType: string = 'Other'
+): Promise<string> {
+  try {
+    // Convert HTML string to Blob
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const filename = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.html`;
+
+    // Create a reference to the file in Firebase Storage
+    const storageRef = ref(storage, `scrollytelling_files/${filename}`);
+
+    // Upload the blob
+    const snapshot = await uploadBytes(storageRef, blob);
+
+    // Get the download URL
+    const downloadURL = await getDownloadURL(snapshot.ref);
+
+    // Save metadata to Firestore
+    const reportData: Omit<ScrollytellingReport, 'id'> = {
+      title,
+      filename,
+      storage_url: downloadURL,
+      status,
+      tags,
+      createdAt: Timestamp.now(),
+      investigationId,
+      decisionLogId,
+      description,
+      reportType,
+    };
+
+    const docRef = await addDoc(collection(db, 'scrollytelling_reports'), reportData);
+
+    return docRef.id;
+  } catch (error) {
+    console.error('Error uploading HTML from string:', error);
     throw error;
   }
 }
