@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function StakeholdersPage() {
   const router = useRouter();
-  const { user, loading, isAdmin: isAdminUser, signOut } = useAuth();
+  const { user, loading, isAdmin: isAdminUser, isViewer, signOut } = useAuth();
   const [reports, setReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
   const [selectedReport, setSelectedReport] = useState<(ScrollytellingReport & { id: string }) | null>(null);
   const [linkedInvestigations, setLinkedInvestigations] = useState<Investigation[]>([]);
@@ -172,7 +172,7 @@ export default function StakeholdersPage() {
   }
 
   // Not authorized
-  if (!isAuthorizedViewer(user.email)) {
+  if (!isViewer) {
     return (
       <div className="min-h-screen bg-bg-light flex items-center justify-center p-6">
         <BrutalCard className="max-w-md w-full text-center">
@@ -181,7 +181,7 @@ export default function StakeholdersPage() {
             Only @alpha.school emails are authorized to access this portal.
           </p>
           <p className="text-sm text-dark/50 mb-6">
-            Signed in as: {user.email}
+            Signed in as: {user?.email}
           </p>
           <BrutalButton onClick={handleSignOut} variant="secondary" className="w-full">
             Sign Out
