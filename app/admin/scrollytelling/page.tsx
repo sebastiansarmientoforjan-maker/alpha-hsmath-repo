@@ -1,26 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BrutalCard, BrutalInput, BrutalButton } from '@/components/ui';
-import { FileUploader } from '@/components/ui/FileUploader';
-import { uploadHtmlReport, ScrollytellingReport } from '@/lib/uploadHtmlReport';
+import { BrutalCard, BrutalButton } from '@/components/ui';
+import { ScrollytellingReport } from '@/lib/uploadHtmlReport';
 import { getAllDecisionLogs, DecisionLog } from '@/lib/decisionLogs';
 import { getAllInvestigations, Investigation } from '@/lib/investigations';
 import { getAllReports, updateReport, deleteReport } from '@/lib/scrollytellingReports';
-import { attachReportToDecision } from '@/lib/decisionLogReports';
-import { attachReportToInvestigation } from '@/lib/investigationReports';
-import { Edit, Trash2, AlertTriangle, ExternalLink, Upload } from 'lucide-react';
+import { Edit, Trash2, AlertTriangle, ExternalLink } from 'lucide-react';
 
 export default function ScrollytellingAdmin() {
-  const [title, setTitle] = useState('');
-  const [tags, setTags] = useState('');
-  const [status, setStatus] = useState<'Published' | 'Archived' | 'Draft'>('Draft');
-  const [description, setDescription] = useState('');
-  const [reportType, setReportType] = useState('Other');
-  const [associationType, setAssociationType] = useState<'none' | 'investigation' | 'decision'>('none');
-  const [selectedInvestigation, setSelectedInvestigation] = useState('');
-  const [selectedDecisionLog, setSelectedDecisionLog] = useState('');
-
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [decisionLogs, setDecisionLogs] = useState<DecisionLog[]>([]);
   const [reports, setReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
@@ -58,53 +46,6 @@ export default function ScrollytellingAdmin() {
       setReports(data);
     } catch (error) {
       console.error('Failed to load reports:', error);
-    }
-  };
-
-  const handleUpload = async (files: File[]) => {
-    if (!title) {
-      alert('Please enter a title for the report');
-      return;
-    }
-
-    try {
-      const tagsArray = tags.split(',').map((tag) => tag.trim()).filter(Boolean);
-
-      for (const file of files) {
-        const reportId = await uploadHtmlReport(
-          file,
-          title,
-          tagsArray,
-          status,
-          associationType === 'investigation' ? selectedInvestigation || null : null,
-          associationType === 'decision' ? selectedDecisionLog || null : null,
-          description,
-          reportType
-        );
-
-        // Attach to the appropriate parent
-        if (associationType === 'investigation' && selectedInvestigation) {
-          await attachReportToInvestigation(selectedInvestigation, reportId);
-        } else if (associationType === 'decision' && selectedDecisionLog) {
-          await attachReportToDecision(selectedDecisionLog, reportId);
-        }
-      }
-
-      setTitle('');
-      setTags('');
-      setStatus('Draft');
-      setDescription('');
-      setReportType('Other');
-      setAssociationType('none');
-      setSelectedInvestigation('');
-      setSelectedDecisionLog('');
-      loadReports();
-      loadInvestigations();
-      loadDecisionLogs();
-      alert('Report(s) uploaded successfully!');
-    } catch (error) {
-      console.error('Upload error:', error);
-      alert('Failed to upload files. Make sure Firebase is configured correctly.');
     }
   };
 
@@ -160,144 +101,8 @@ export default function ScrollytellingAdmin() {
     <div>
       <h1 className="text-4xl font-bold text-dark mb-2">Scrollytelling Reports</h1>
       <p className="text-dark/70 mb-8">
-        Upload immersive HTML reports with scrollytelling narratives
+        Manage AI-generated scrollytelling reports. New reports are created from Decision Logs using AI.
       </p>
-
-      {/* Upload Form */}
-      <BrutalCard className="mb-6">
-        <h2 className="text-xl font-bold text-dark mb-4">Report Metadata</h2>
-
-        <div className="space-y-4">
-          <BrutalInput
-            label="Report Title"
-            placeholder="e.g., Q1 Algebra Masters Analysis"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-
-          <BrutalInput
-            label="Tags (comma-separated)"
-            placeholder="e.g., algebra, Q1, analysis"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-          />
-
-          <div>
-            <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
-              Association Type
-            </label>
-            <select
-              value={associationType}
-              onChange={(e) => {
-                setAssociationType(e.target.value as any);
-                setSelectedInvestigation('');
-                setSelectedDecisionLog('');
-              }}
-              className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-medium focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]"
-            >
-              <option value="none">None (Orphaned)</option>
-              <option value="investigation">Investigation</option>
-              <option value="decision">Decision (Own Scrollytelling)</option>
-            </select>
-          </div>
-
-          {associationType === 'investigation' && (
-            <div>
-              <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
-                Select Investigation
-              </label>
-              <select
-                value={selectedInvestigation}
-                onChange={(e) => setSelectedInvestigation(e.target.value)}
-                className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-medium focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]"
-                required
-              >
-                <option value="">-- Select Investigation --</option>
-                {investigations.map((inv) => (
-                  <option key={inv.id} value={inv.id}>
-                    {inv.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {associationType === 'decision' && (
-            <div>
-              <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
-                Select Decision Log
-              </label>
-              <select
-                value={selectedDecisionLog}
-                onChange={(e) => setSelectedDecisionLog(e.target.value)}
-                className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-medium focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]"
-                required
-              >
-                <option value="">-- Select Decision --</option>
-                {decisionLogs.map((log) => (
-                  <option key={log.id} value={log.id}>
-                    {log.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
-              Report Type
-            </label>
-            <select
-              value={reportType}
-              onChange={(e) => setReportType(e.target.value)}
-              className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-medium focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]"
-            >
-              <option value="Pre-Analysis">Pre-Analysis</option>
-              <option value="Mid-Term">Mid-Term</option>
-              <option value="Final">Final</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-serif focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] resize-y"
-              placeholder="Brief context about this report..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
-              Status
-            </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as any)}
-              className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-medium focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]"
-            >
-              <option value="Draft">Draft</option>
-              <option value="Published">Published</option>
-              <option value="Archived">Archived</option>
-            </select>
-          </div>
-        </div>
-      </BrutalCard>
-
-      <BrutalCard className="mb-6">
-        <div className="mb-4">
-          <h2 className="text-xl font-bold text-dark">Upload HTML File</h2>
-          <p className="text-sm text-dark/60 mt-2">
-            Upload HTML files generated by AI. Manual HTML editing is not supported in this version.
-          </p>
-        </div>
-        <FileUploader onUpload={handleUpload} accept=".html" multiple />
-      </BrutalCard>
 
       {/* Report Management */}
       <div className="mt-8">
