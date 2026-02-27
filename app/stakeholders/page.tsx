@@ -7,8 +7,7 @@ import { getAllReports, ScrollytellingReport } from '@/lib/scrollytellingReports
 import { getInvestigationsForDecision } from '@/lib/decisionInvestigations';
 import { Investigation } from '@/lib/investigations';
 import { addReportComment, getReportComments, ReportComment } from '@/lib/reportComments';
-import { approveReportForStakeholders, disapproveReportForStakeholders } from '@/lib/stakeholderApproval';
-import { Eye, MessageSquare, Microscope, LogOut, CheckCircle, XCircle, Shield } from 'lucide-react';
+import { Eye, MessageSquare, Microscope, LogOut, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function StakeholdersPage() {
@@ -56,28 +55,6 @@ export default function StakeholdersPage() {
       }
     } catch (error) {
       console.error('Error loading reports:', error);
-    }
-  };
-
-  const handleApprove = async (reportId: string) => {
-    try {
-      await approveReportForStakeholders(reportId);
-      await loadReports();
-      alert('Report approved for stakeholder viewing!');
-    } catch (error) {
-      console.error('Error approving report:', error);
-      alert('Failed to approve report.');
-    }
-  };
-
-  const handleDisapprove = async (reportId: string) => {
-    try {
-      await disapproveReportForStakeholders(reportId);
-      await loadReports();
-      alert('Report disapproved for stakeholder viewing.');
-    } catch (error) {
-      console.error('Error disapproving report:', error);
-      alert('Failed to disapprove report.');
     }
   };
 
@@ -209,7 +186,7 @@ export default function StakeholdersPage() {
               )}
             </h1>
             <p className="text-sm text-dark/70">
-              {isAdminUser ? 'Admin Portal - Manage Stakeholder Reports' : 'Stakeholder Portal'}
+              {isAdminUser ? 'Admin Portal - View and Comment on Reports' : 'Stakeholder Portal'}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -231,11 +208,10 @@ export default function StakeholdersPage() {
           <>
             <div className="mb-6">
               <h2 className="text-xl font-bold text-dark mb-2">
-                {isAdminUser ? 'Published Reports - Approval Management' : 'Approved Decision Reports'}
+                {isAdminUser ? 'Published Decision Reports' : 'Approved Decision Reports'}
               </h2>
               <p className="text-dark/70">
                 {reports.length} {reports.length === 1 ? 'report' : 'reports'} available
-                {isAdminUser && ' (Approve reports to make them visible to stakeholders)'}
               </p>
             </div>
 
@@ -252,18 +228,7 @@ export default function StakeholdersPage() {
                 {reports.map((report) => (
                   <BrutalCard key={report.id} hoverable>
                     <div className="mb-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-lg font-bold text-dark flex-1">{report.title}</h3>
-                        {isAdminUser && (
-                          <span className={`px-2 py-1 text-xs font-bold border-2 border-dark ${
-                            report.approvedForStakeholders
-                              ? 'bg-success-green text-white'
-                              : 'bg-gray-300 text-dark'
-                          }`}>
-                            {report.approvedForStakeholders ? '✓ APPROVED' : 'PENDING'}
-                          </span>
-                        )}
-                      </div>
+                      <h3 className="text-lg font-bold text-dark mb-2">{report.title}</h3>
                       {report.description && (
                         <p className="text-sm text-dark/70 mb-3">{report.description}</p>
                       )}
@@ -278,7 +243,7 @@ export default function StakeholdersPage() {
                         ))}
                       </div>
                     </div>
-                    <div className="pt-3 border-t-2 border-dark space-y-2">
+                    <div className="pt-3 border-t-2 border-dark">
                       <div className="grid grid-cols-2 gap-2">
                         <BrutalButton
                           onClick={() => handleViewReport(report)}
@@ -309,29 +274,6 @@ export default function StakeholdersPage() {
                           Research
                         </BrutalButton>
                       </div>
-
-                      {isAdminUser && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <BrutalButton
-                            onClick={() => handleApprove(report.id)}
-                            variant="secondary"
-                            className="gap-1 text-sm"
-                            disabled={report.approvedForStakeholders === true}
-                          >
-                            <CheckCircle size={14} />
-                            Approve
-                          </BrutalButton>
-                          <BrutalButton
-                            onClick={() => handleDisapprove(report.id)}
-                            variant="secondary"
-                            className="gap-1 text-sm"
-                            disabled={report.approvedForStakeholders === false}
-                          >
-                            <XCircle size={14} />
-                            Disapprove
-                          </BrutalButton>
-                        </div>
-                      )}
                     </div>
                   </BrutalCard>
                 ))}
