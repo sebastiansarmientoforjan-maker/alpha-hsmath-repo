@@ -5,79 +5,97 @@ import { BrutalCard, BrutalButton, BrutalInput } from '@/components/ui';
 import { Sparkles, Copy, Check, Download, Save } from 'lucide-react';
 import { saveGemPrompt } from '@/lib/gemPrompts';
 
+type PromptEngine = 'gemini' | 'perplexity';
+
 export default function GemGenerator() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [generatedPrompt, setGeneratedPrompt] = useState('');
+  const [generatedPrompts, setGeneratedPrompts] = useState<{
+    gemini: string;
+    perplexity: string;
+  }>({ gemini: '', perplexity: '' });
+  const [activeEngine, setActiveEngine] = useState<PromptEngine>('gemini');
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Get current month/year for dynamic Recency calculation
+  const getCurrentMonthYear = () => {
+    const now = new Date();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[now.getMonth()]} ${now.getFullYear()}`;
+  };
 
   const generatePrompt = () => {
     // Reset saved state when generating new prompt
     setSaved(false);
 
-    const prompt = `Tu función es orquestar investigaciones educativas de alto nivel para un entorno High School, ejecutando una arquitectura de **"Lectura Activa"** (RLM) y una **Auditoría de Fuentes Ponderadas** antes de generar cualquier output.
+    const currentMonthYear = getCurrentMonthYear();
+
+    // Base prompt structure shared by both engines
+    const basePrompt = `You are orchestrating high-level educational research for a High School environment, executing an **"Active Reading"** (RLM) architecture and **Weighted Source Auditing** before generating any output.
+
+**IMPORTANT: Respond in ENGLISH.** All outputs, tables, and explanations must be in English.
 
 **Context:** Alpha School (Adaptive Pathways, Data-Driven, 2x Acceleration).
 
 ---
 
-### INPUT DEL USUARIO
+### USER INPUT
 
 **Research Query:** "${searchQuery}"
 
 ---
 
-### PROTOCOLO DE EJECUCIÓN (RLM KERNEL)
+### EXECUTION PROTOCOL (RLM KERNEL)
 
-No respondas de inmediato. Debes ejecutar secuencialmente las siguientes operaciones cognitivas:
+Do not respond immediately. Execute sequentially the following cognitive operations:
 
-#### FASE 1: PEEK & SEARCH (Exploración)
+#### PHASE 1: PEEK & SEARCH (Exploration)
 
-1. **Estrategia:** Genera keywords de búsqueda técnica (ej: "meta-analysis", "effect size") combinadas con el tópico.
-2. **Búsqueda:** Utiliza tus herramientas de navegación para encontrar 8-12 fuentes académicas/técnicas potenciales.
+1. **Strategy:** Generate technical search keywords (e.g., "meta-analysis", "effect size") combined with the topic.
+2. **Search:** Use your navigation tools to find 8-12 potential academic/technical sources.
 
-#### FASE 2: AUDIT & FILTER (Source Table Evaluation)
+#### PHASE 2: AUDIT & FILTER (Source Table Evaluation)
 
-**CRÍTICO:** Para cada fuente encontrada, ejecuta el siguiente algoritmo de evaluación *line-by-line*.
+**CRITICAL:** For each source found, execute the following evaluation algorithm *line-by-line*.
 
 **Logic for Reliability Score (Max 10.0):**
 
-Calcula el promedio ponderado usando estos 3 factores exactos:
+Calculate the weighted average using these 3 exact factors:
 
-1. **Recency (50% Weight):** Escala continua donde **Jan 2026 = 10 pts**.
-   * *Regla:* Resta 1 punto por cada 3 meses de antigüedad desde Ene 2026.
-   * *Ejemplo:* July 2025 = 8.0 | Jan 2025 = 6.0 | Jan 2024 = 2.0.
+1. **Recency (50% Weight):** Continuous scale where **${currentMonthYear} = 10 pts**.
+   * *Rule:* Subtract 1 point for every 3 months of age from ${currentMonthYear}.
+   * *Example:* 6 months ago = 8.0 | 12 months ago = 6.0 | 24 months ago = 2.0.
 
 2. **Type (30% Weight):**
-   * **10 pts** = "Hard Data" (Meta-análisis, Estudios empíricos controlados, Estadísticas oficiales).
-   * **7 pts** = "Applied Research" (Estudios de caso con data).
-   * **5 pts** = "Theory/Framework" (Marcos pedagógicos respaldados).
-   * **2 pts** = "Perspectives" (Artículos de opinión, Teoría, Blog posts).
+   * **10 pts** = "Hard Data" (Meta-analyses, Controlled empirical studies, Official statistics).
+   * **7 pts** = "Applied Research" (Case studies with data).
+   * **5 pts** = "Theory/Framework" (Supported pedagogical frameworks).
+   * **2 pts** = "Perspectives" (Opinion articles, Theory, Blog posts).
 
 3. **Authority (20% Weight):**
    * Rate 1-10 based on institution/journal reputation (e.g., Nature/ERIC = High).
 
 **Action Threshold:**
-* Si \`Final Score\` < 5.0 → **FLAG FOR DESELECTION**.
-* Si \`Final Score\` >= 5.0 → **KEEP**.
+* If \`Final Score\` < 5.0 → **FLAG FOR DESELECTION**.
+* If \`Final Score\` >= 5.0 → **KEEP**.
 
-#### FASE 3: EXTRACT & SYNTHESIZE (Data Processing)
+#### PHASE 3: EXTRACT & SYNTHESIZE (Data Processing)
 
-De las fuentes "KEEP", extrae la data mapeándola a los campos relevantes:
-* Identifica \`[EVIDENCIA EMPÍRICA]\` (números, % aceleración, effect sizes).
-* Identifica \`[MODELOS PEDAGÓGICOS/DIDÁCTICOS]\` (estrategias aplicables).
-* Identifica \`[FRAMEWORKS EDUCATIVOS]\` (marcos teóricos respaldados).
+From "KEEP" sources, extract data mapping it to relevant fields:
+* Identify \`[EMPIRICAL EVIDENCE]\` (numbers, % acceleration, effect sizes).
+* Identify \`[PEDAGOGICAL/DIDACTIC MODELS]\` (applicable strategies).
+* Identify \`[EDUCATIONAL FRAMEWORKS]\` (supported theoretical frameworks).
 
 ---
 
-### OUTPUT FINAL ESPERADO
+### EXPECTED FINAL OUTPUT
 
-Debes presentar el resultado en dos partes claras:
+Present the result in two clear parts:
 
-#### PARTE 1: SOURCE RELIABILITY MATRIX (Visual Audit)
+#### PART 1: SOURCE RELIABILITY MATRIX (Visual Audit)
 
-Genera la tabla de auditoría obligatoria ordenada por Score (Mayor a Menor).
+Generate the mandatory audit table ordered by Score (Highest to Lowest).
 
 | Source Name | Date | Category | Logic | Reliability Score | Action |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -88,27 +106,57 @@ Genera la tabla de auditoría obligatoria ordenada por Score (Mayor a Menor).
 
 ---
 
-**INSTRUCCIONES FINALES:**
-1. Ejecuta TODAS las fases antes de responder
-2. NO omitas la Source Reliability Matrix
-3. Ordena las fuentes por Reliability Score (mayor a menor)
-4. Incluye justificación clara para cada source`;
+**FINAL INSTRUCTIONS:**
+1. Execute ALL phases before responding
+2. DO NOT omit the Source Reliability Matrix
+3. Order sources by Reliability Score (highest to lowest)
+4. Include clear justification for each source
+5. **All output must be in ENGLISH**`;
 
-    setGeneratedPrompt(prompt);
+    // Gemini-specific optimization
+    const geminiPrompt = basePrompt + `
+
+---
+
+**GEMINI OPTIMIZATION:**
+- Use your web search tools to find academic sources
+- Perform multiple iterative searches if necessary
+- Prioritize Google Scholar, ERIC, ResearchGate
+- Generate complete table with clear markdown formatting`;
+
+    // Perplexity-specific optimization
+    const perplexityPrompt = basePrompt + `
+
+---
+
+**PERPLEXITY OPTIMIZATION:**
+- Use your search engine to find relevant sources
+- Include direct citations in each table entry
+- Prioritize academic papers with verifiable DOI/URLs
+- Concise but complete format`;
+
+    setGeneratedPrompts({
+      gemini: geminiPrompt,
+      perplexity: perplexityPrompt,
+    });
+  };
+
+  const getActivePrompt = () => {
+    return generatedPrompts[activeEngine];
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatedPrompt);
+    navigator.clipboard.writeText(getActivePrompt());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const downloadPrompt = () => {
-    const blob = new Blob([generatedPrompt], { type: 'text/plain' });
+    const blob = new Blob([getActivePrompt()], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gem-prompt-${searchQuery.slice(0, 50).replace(/\s+/g, '-').toLowerCase()}.txt`;
+    a.download = `gem-${activeEngine}-${searchQuery.slice(0, 50).replace(/\s+/g, '-').toLowerCase()}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -118,10 +166,10 @@ Genera la tabla de auditoría obligatoria ordenada por Score (Mayor a Menor).
   const savePrompt = async () => {
     setSaving(true);
     try {
-      await saveGemPrompt(searchQuery, generatedPrompt);
+      await saveGemPrompt(`[${activeEngine.toUpperCase()}] ${searchQuery}`, getActivePrompt());
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-      alert('Prompt saved to repository!');
+      alert(`${activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} prompt saved to repository!`);
     } catch (error) {
       console.error('Error saving prompt:', error);
       alert('Failed to save prompt. Please try again.');
@@ -173,10 +221,38 @@ Genera la tabla de auditoría obligatoria ordenada por Score (Mayor a Menor).
       </div>
 
       {/* Generated Prompt Display */}
-      {generatedPrompt && (
+      {generatedPrompts.gemini && (
         <BrutalCard>
+          {/* Engine Tabs */}
+          <div className="flex gap-2 mb-4 border-b-4 border-dark pb-4">
+            <button
+              onClick={() => setActiveEngine('gemini')}
+              className={`px-6 py-3 border-4 border-dark font-bold transition-all ${
+                activeEngine === 'gemini'
+                  ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
+                  : 'bg-white text-dark hover:bg-bg-light'
+              }`}
+            >
+              <Sparkles size={16} className="inline mr-2" />
+              Gemini Deep Research
+            </button>
+            <button
+              onClick={() => setActiveEngine('perplexity')}
+              className={`px-6 py-3 border-4 border-dark font-bold transition-all ${
+                activeEngine === 'perplexity'
+                  ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
+                  : 'bg-white text-dark hover:bg-bg-light'
+              }`}
+            >
+              <FileText size={16} className="inline mr-2" />
+              Perplexity AI
+            </button>
+          </div>
+
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-dark">Generated Prompt</h2>
+            <h2 className="text-xl font-bold text-dark">
+              {activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} Optimized Prompt
+            </h2>
             <div className="flex gap-2">
               <BrutalButton
                 onClick={savePrompt}
@@ -225,21 +301,29 @@ Genera la tabla de auditoría obligatoria ordenada por Score (Mayor a Menor).
           </div>
 
           <div className="bg-bg-light border-4 border-dark p-4 font-mono text-sm max-h-96 overflow-auto">
-            <pre className="whitespace-pre-wrap text-dark">{generatedPrompt}</pre>
+            <pre className="whitespace-pre-wrap text-dark">{getActivePrompt()}</pre>
           </div>
 
           <div className="mt-4 p-4 border-4 border-cool-blue bg-cool-blue/10">
-            <p className="text-sm font-bold text-dark mb-2">📋 Next Steps:</p>
+            <p className="text-sm font-bold text-dark mb-2">📋 Siguientes Pasos:</p>
             <ol className="text-sm text-dark/80 space-y-1 list-decimal list-inside">
-              <li>Copy the generated prompt above</li>
-              <li>Open <strong>Gemini Deep Research</strong> or <strong>Gemini 2.0 Flash Thinking</strong></li>
-              <li>Paste the prompt and run the research</li>
-              <li>Wait for Gemini to complete all phases (typically 5-10 minutes)</li>
-              <li>Review the <strong>Source Reliability Matrix</strong> with scored sources</li>
-              <li>Use the findings to create an investigation in <strong>Research Repository</strong></li>
+              <li>Selecciona el tab <strong>Gemini</strong> o <strong>Perplexity</strong> según tu preferencia</li>
+              <li>Copia el prompt optimizado para ese motor</li>
+              <li>Abre {activeEngine === 'gemini' ? <><strong>Gemini Deep Research</strong> o <strong>Gemini 2.0 Flash Thinking</strong></> : <strong>Perplexity AI</strong>}</li>
+              <li>Pega el prompt y ejecuta la búsqueda</li>
+              <li>Espera a que complete todas las fases (típicamente 5-10 minutos)</li>
+              <li>Revisa la <strong>Source Reliability Matrix</strong> con fuentes scoreadas</li>
+              <li>Usa los hallazgos para crear una investigación en <strong>Research Repository</strong></li>
             </ol>
+            <div className="mt-3 p-3 border-2 border-dark bg-white">
+              <p className="text-xs font-bold text-dark mb-1">🔍 Diferencias clave:</p>
+              <ul className="text-xs text-dark/70 space-y-1">
+                <li><strong>Gemini:</strong> Búsqueda profunda e iterativa, mejor para análisis comprehensivos</li>
+                <li><strong>Perplexity:</strong> Respuestas rápidas con citations directas, mejor para síntesis concisas</li>
+              </ul>
+            </div>
             <p className="text-xs text-dark/60 mt-3">
-              💡 Works for any educational topic: mathematics, pedagogy, didactics, assessment, learning theory, etc.
+              💡 Ambas versiones incluyen <strong>Recency automático</strong> (actualizado a {getCurrentMonthYear()}) y responden en <strong>español</strong>
             </p>
           </div>
         </BrutalCard>
