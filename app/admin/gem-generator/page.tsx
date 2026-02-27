@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { BrutalCard, BrutalButton, BrutalInput } from '@/components/ui';
 import { Sparkles, Copy, Check, Download, Save, FileText } from 'lucide-react';
 import { saveGemPrompt } from '@/lib/gemPrompts';
+import { useAuth } from '@/contexts/AuthContext';
 
 type PromptEngine = 'gemini' | 'perplexity';
 
 export default function GemGenerator() {
+  const { user, signInWithGoogle } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [generatedPrompts, setGeneratedPrompts] = useState<{
     gemini: string;
@@ -189,6 +191,27 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
   };
 
   const savePrompt = async () => {
+    // Check if user is authenticated
+    if (!user) {
+      const shouldSignIn = confirm(
+        'You need to sign in to save prompts. Would you like to sign in with Google?'
+      );
+      if (shouldSignIn) {
+        try {
+          await signInWithGoogle();
+          // After sign in, try to save again
+          await saveGemPrompt(`[${activeEngine.toUpperCase()}] ${searchQuery}`, getActivePrompt());
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+          alert(`${activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} prompt saved to repository!`);
+        } catch (error) {
+          console.error('Error during sign in or save:', error);
+          alert('Failed to sign in or save prompt. Please try again.');
+        }
+      }
+      return;
+    }
+
     setSaving(true);
     try {
       await saveGemPrompt(`[${activeEngine.toUpperCase()}] ${searchQuery}`, getActivePrompt());
@@ -275,9 +298,16 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
           </div>
 
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-dark">
-              {activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} Optimized Prompt
-            </h2>
+            <div>
+              <h2 className="text-xl font-bold text-dark">
+                {activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} Optimized Prompt
+              </h2>
+              {!user && (
+                <p className="text-xs text-dark/60 mt-1">
+                  ℹ️ Sign in required to save prompts
+                </p>
+              )}
+            </div>
             <div className="flex gap-2">
               <BrutalButton
                 onClick={savePrompt}
