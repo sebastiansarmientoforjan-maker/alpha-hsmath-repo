@@ -349,17 +349,6 @@ export default function ScrollytellingAdmin() {
           </div>
         </div>
       )}
-
-      <div className="mt-6 p-4 border-4 border-alert-orange bg-alert-orange/10">
-        <p className="font-bold text-dark mb-2">⚠️ Important Notes:</p>
-        <ul className="text-sm text-dark/80 space-y-1 list-disc list-inside font-serif">
-          <li>HTML files should be self-contained with embedded styles and scripts</li>
-          <li>Large external dependencies may affect loading performance</li>
-          <li>Only Published reports will appear in the public Gallery</li>
-          <li>Orphaned reports are not associated with any decision log</li>
-          <li>Make sure Firebase is configured in .env.local before uploading</li>
-        </ul>
-      </div>
     </div>
   );
 }
