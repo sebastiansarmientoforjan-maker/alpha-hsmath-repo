@@ -151,81 +151,38 @@ ${idx + 1}. ${inv.title}
 Generate a stunning, modern HTML ScrollyTelling experience with the aesthetic quality of premium design systems.
 
 **HTML STRUCTURE TEMPLATE:**
-```
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>[Decision Title]</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; background: #0F1115; color: #E0E0E0; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-        .reveal { opacity: 0; transform: translateY(2rem); transition: all 0.7s; }
-        .reveal.active { opacity: 1; transform: translateY(0); }
-        html { scroll-behavior: smooth; }
-    </style>
-</head>
-<body class="antialiased selection:bg-navy selection:text-white">
-    <!-- Hero Section -->
-    <section class="min-h-screen flex items-center justify-center py-24 px-6 bg-gradient-to-b from-navy/20 to-transparent">
-        <div class="max-w-6xl mx-auto text-center space-y-8">
-            <h1 class="text-7xl md:text-9xl font-black leading-tight tracking-tighter">
-                [Main Title]
-            </h1>
-            <p class="text-2xl md:text-3xl text-muted leading-relaxed max-w-4xl mx-auto">
-                [Subtitle/BLUF]
-            </p>
-            <div class="flex items-center justify-center gap-4 mt-16">
-                <div class="text-cyan-400 text-6xl font-black">[Key Metric]</div>
-                <div class="text-muted">[Metric Label]</div>
-            </div>
-        </div>
-    </section>
 
-    <!-- Content Sections (repeat with generous spacing) -->
-    <section class="py-24 px-6">
-        <div class="max-w-4xl mx-auto space-y-16">
-            <h2 class="text-5xl md:text-7xl font-black tracking-tight">
-                [Section Title]
-            </h2>
-            <div class="space-y-8">
-                <p class="text-xl leading-relaxed text-text">
-                    [Content with generous line-height]
-                </p>
-            </div>
-        </div>
-    </section>
+Start with this base structure:
+- DOCTYPE html with Tailwind CDN
+- Google Fonts: Inter + JetBrains Mono
+- Dark theme background: #0F1115
+- Custom CSS for reveal animations and smooth scroll
+- Hero section with large title (text-9xl font-black)
+- Content sections with py-24 spacing
+- Cards with rounded-2xl backdrop-blur-md
+- IntersectionObserver script for scroll animations
 
-    <!-- Data Visualization (text-based with modern styling) -->
-    <section class="py-24 px-6">
-        <div class="max-w-6xl mx-auto">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="p-8 rounded-2xl bg-surface/30 backdrop-blur-md border border-white/10">
-                    <div class="text-4xl font-black text-success mb-4">[Metric]</div>
-                    <div class="text-muted">[Label]</div>
-                </div>
-                <!-- Repeat cards -->
-            </div>
-        </div>
-    </section>
+Example Hero:
+<section class="min-h-screen flex items-center justify-center py-24 px-6 bg-gradient-to-b from-navy/20 to-transparent">
+  <div class="max-w-6xl mx-auto text-center space-y-8">
+    <h1 class="text-7xl md:text-9xl font-black">[Title]</h1>
+    <p class="text-2xl text-muted">[Subtitle]</p>
+  </div>
+</section>
 
-    <script>
-        // IntersectionObserver for scroll animations
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) entry.target.classList.add('active');
-            });
-        }, { threshold: 0.1 });
+Example Content Section:
+<section class="py-24 px-6">
+  <div class="max-w-4xl mx-auto space-y-16">
+    <h2 class="text-5xl md:text-7xl font-black">[Section]</h2>
+    <p class="text-xl leading-relaxed">[Content]</p>
+  </div>
+</section>
 
-        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-    </script>
-</body>
-</html>
-```
+Example Metrics Card:
+<div class="p-8 rounded-2xl bg-surface/30 backdrop-blur-md border border-white/10">
+  <div class="text-4xl font-black text-success mb-4">[Value]</div>
+  <div class="text-muted">[Label]</div>
+</div>
 
 **REQUIREMENTS:**
 1. Use the template above as base structure
