@@ -171,16 +171,31 @@ export default function DecisionLogsAdmin() {
     }
   };
 
-  // Parser functions
+  // Parser functions - improved to handle long content
   const extractSection = (text: string, keywords: string[]): string => {
     const keywordPattern = keywords.join('|');
-    const regex = new RegExp(
-      `(?:^|\\n)\\s*(?:#{1,6}\\s*)?(?:${keywordPattern})[:\\s]*\\n([\\s\\S]*?)(?=\\n\\s*#{1,6}\\s|\\n\\n[A-Z]|$)`,
+
+    // Try to find section with header
+    const headerRegex = new RegExp(
+      `(?:^|\\n)\\s*#{1,6}\\s*(${keywordPattern})\\s*\\n([\\s\\S]*?)(?=\\n#{1,6}\\s|$)`,
       'im'
     );
-    const match = text.match(regex);
-    if (match && match[1]) return match[1].trim();
+    const headerMatch = text.match(headerRegex);
+    if (headerMatch && headerMatch[2]) {
+      return headerMatch[2].trim();
+    }
 
+    // Try without header requirement - just keyword with colon
+    const colonRegex = new RegExp(
+      `(?:^|\\n)\\s*(?:${keywordPattern})[:\\s]*\\n([\\s\\S]*?)(?=\\n(?:Purpose|Context|Decision|Rationale|Evidence|Methodology|Key Findings|Summary|Who|Focus|Domain|Technical|Insights|SpikyPOVs)[:\\s]|\\n#{1,6}\\s|$)`,
+      'im'
+    );
+    const colonMatch = text.match(colonRegex);
+    if (colonMatch && colonMatch[1]) {
+      return colonMatch[1].trim();
+    }
+
+    // Last resort: inline format
     const inlineRegex = new RegExp(`(?:${keywordPattern})[:\\s]+([^\\n]+)`, 'im');
     const inlineMatch = text.match(inlineRegex);
     return inlineMatch ? inlineMatch[1].trim() : '';
@@ -204,24 +219,43 @@ export default function DecisionLogsAdmin() {
       const titleLine = lines.find(l => l.startsWith('#')) || lines[0];
       const title = titleLine.replace(/^#+\s*/, '').trim();
 
-      // Extract main sections
-      const purpose = extractSection(rawDocText, ['purpose', 'propósito', 'objective', 'objetivo']);
-      const context = extractSection(rawDocText, ['context', 'contexto', 'background', 'antecedentes']);
-      const decision = extractSection(rawDocText, ['decision', 'decisión', 'approach', 'solution']);
-      const rationale = extractSection(rawDocText, ['rationale', 'justification', 'justificación', 'why', 'por qué']);
-      const evidence = extractSection(rawDocText, ['evidence', 'evidencia', 'data', 'results', 'findings']);
+      // Remove title from rawDocText to avoid duplication
+      const contentWithoutTitle = rawDocText.replace(titleLine, '').trim();
 
-      // Build base rationale from available content
+      // For complex/long documents, use full content without parsing
+      const isComplexDocument = rawDocText.length > 2000 ||
+                                rawDocText.includes('Knowledge Tree') ||
+                                rawDocText.includes('Strategic Meta-Analysis') ||
+                                rawDocText.includes('SpikyPOVs') ||
+                                rawDocText.includes('Experts');
+
       let fullRationale = '';
-      if (purpose) fullRationale += `## Purpose\n${purpose}\n\n`;
-      if (context) fullRationale += `## Context\n${context}\n\n`;
-      if (decision) fullRationale += `## Decision\n${decision}\n\n`;
-      if (rationale) fullRationale += `## Rationale\n${rationale}\n\n`;
-      if (evidence) fullRationale += `## Evidence\n${evidence}\n\n`;
 
-      // If no structured rationale, use the full text
-      if (!fullRationale.trim()) {
-        fullRationale = rawDocText;
+      if (isComplexDocument) {
+        // Use full document as-is (without title since it's in the title field)
+        fullRationale = contentWithoutTitle;
+      } else {
+        // Try to parse structured sections for simpler documents
+        const purpose = extractSection(rawDocText, ['purpose', 'propósito', 'objective', 'objetivo']);
+        const context = extractSection(rawDocText, ['context', 'contexto', 'background', 'antecedentes']);
+        const decision = extractSection(rawDocText, ['decision', 'decisión', 'approach', 'solution']);
+        const rationale = extractSection(rawDocText, ['rationale', 'justification', 'justificación', 'why', 'por qué']);
+        const evidence = extractSection(rawDocText, ['evidence', 'evidencia', 'data', 'results', 'findings']);
+
+        // Check if we have structured content
+        const hasStructuredContent = purpose || context || decision || rationale || evidence;
+
+        if (hasStructuredContent) {
+          // Use structured format
+          if (purpose) fullRationale += `## Purpose\n${purpose}\n\n`;
+          if (context) fullRationale += `## Context\n${context}\n\n`;
+          if (decision) fullRationale += `## Decision\n${decision}\n\n`;
+          if (rationale) fullRationale += `## Rationale\n${rationale}\n\n`;
+          if (evidence) fullRationale += `## Evidence\n${evidence}\n\n`;
+        } else {
+          // No structured content found - use full document
+          fullRationale = contentWithoutTitle;
+        }
       }
 
       // INTEGRATE INVESTIGATIONS
