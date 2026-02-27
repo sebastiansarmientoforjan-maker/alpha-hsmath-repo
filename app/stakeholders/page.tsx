@@ -7,7 +7,7 @@ import { getAllReports, ScrollytellingReport } from '@/lib/scrollytellingReports
 import { getInvestigationsForDecision } from '@/lib/decisionInvestigations';
 import { Investigation } from '@/lib/investigations';
 import { addReportComment, getReportComments, ReportComment } from '@/lib/reportComments';
-import { Eye, MessageSquare, Microscope, LogOut, Shield } from 'lucide-react';
+import { Eye, MessageSquare, Microscope, LogOut, Shield, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function StakeholdersPage() {
@@ -194,6 +194,12 @@ export default function StakeholdersPage() {
               <p className="text-sm font-medium text-dark">{user.displayName || 'User'}</p>
               <p className="text-xs text-dark/70">{user.email}</p>
             </div>
+            {isAdminUser && (
+              <BrutalButton onClick={() => router.push('/admin')} variant="primary" className="gap-2">
+                <ArrowLeft size={16} />
+                Admin Panel
+              </BrutalButton>
+            )}
             <BrutalButton onClick={handleSignOut} variant="secondary" className="gap-2">
               <LogOut size={16} />
               Sign Out
