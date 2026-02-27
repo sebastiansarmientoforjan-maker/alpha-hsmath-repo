@@ -15,11 +15,22 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Handle redirect result from Google sign-in only
+    // Check if we already processed the redirect to prevent loops
+    const redirectProcessed = sessionStorage.getItem('auth_redirect_processed');
+
+    // Handle redirect result from Google sign-in only once
     const handleRedirectResult = async () => {
+      if (redirectProcessed) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const result = await getRedirectResult(auth);
         if (result && result.user) {
+          // Mark as processed to prevent re-processing
+          sessionStorage.setItem('auth_redirect_processed', 'true');
+
           const userEmail = result.user.email;
 
           // Only redirect immediately after successful OAuth flow
@@ -46,10 +57,7 @@ export default function Home() {
     // Listen for auth state changes but don't auto-redirect
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
-      // Only set loading to false if we're not in the middle of redirect handling
-      if (!currentUser) {
-        setLoading(false);
-      }
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -57,6 +65,8 @@ export default function Home() {
 
   const handleGoogleSignIn = async () => {
     try {
+      // Clear any previous redirect flag before starting new auth flow
+      sessionStorage.removeItem('auth_redirect_processed');
       await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       console.error('Sign in error:', error);
@@ -67,6 +77,8 @@ export default function Home() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      // Clear the redirect processed flag so user can sign in again
+      sessionStorage.removeItem('auth_redirect_processed');
     } catch (error) {
       console.error('Sign out error:', error);
     }
