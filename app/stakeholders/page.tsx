@@ -14,7 +14,7 @@ import {
 } from '@/lib/stakeholderApproval';
 import { Eye, MessageSquare, Microscope, LogOut, CheckCircle, XCircle, Shield } from 'lucide-react';
 import { auth, googleProvider } from '@/lib/firebase';
-import { signInWithPopup, signOut, User } from 'firebase/auth';
+import { signInWithRedirect, getRedirectResult, signOut, User } from 'firebase/auth';
 
 export default function StakeholdersPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -29,6 +29,24 @@ export default function StakeholdersPage() {
   const [isAdminUser, setIsAdminUser] = useState(false);
 
   useEffect(() => {
+    // Handle redirect result from Google sign-in
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          const userEmail = result.user.email;
+          if (!isAuthorizedViewer(userEmail)) {
+            await signOut(auth);
+            alert('Access denied. Only @alpha.school emails are authorized.');
+          }
+        }
+      } catch (error) {
+        console.error('Redirect result error:', error);
+      }
+    };
+
+    handleRedirectResult();
+
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
       setIsAdminUser(isAdmin(currentUser?.email || null));
@@ -45,13 +63,8 @@ export default function StakeholdersPage() {
 
   const handleGoogleSignIn = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const userEmail = result.user.email;
-
-      if (!isAuthorizedViewer(userEmail)) {
-        await signOut(auth);
-        alert('Access denied. Only @alpha.school emails are authorized.');
-      }
+      // Use redirect instead of popup to avoid popup blockers
+      await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       console.error('Sign in error:', error);
       alert('Failed to sign in. Please try again.');
