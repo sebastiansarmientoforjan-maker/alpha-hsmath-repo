@@ -198,7 +198,7 @@ Example Metrics Card:
 
 **OUTPUT:**
 Return ONLY the complete HTML code. No markdown blocks, just pure HTML starting with <!DOCTYPE html>.
-Make it beautiful, spacious, and modern - like a premium tech product.
+Make it beautiful, spacious, and modern - like a premium tech product.`;
 
     const modelId = 'us.anthropic.claude-sonnet-4-20250514-v1:0';
 
