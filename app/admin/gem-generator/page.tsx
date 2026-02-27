@@ -251,13 +251,13 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
               }
             }}
             placeholder="e.g., Adaptive Learning Pathways in Algebra, Formative Assessment Strategies, Growth Mindset in Mathematics..."
-            className="w-full border-4 border-dark px-6 py-5 text-lg bg-white text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue pr-32"
+            className="w-full border-4 border-dark px-6 py-5 text-lg bg-white text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue pr-48"
           />
           <BrutalButton
             onClick={generatePrompt}
             disabled={!searchQuery.trim()}
             variant="primary"
-            className="absolute right-2 top-2 gap-2"
+            className="absolute right-3 top-1/2 -translate-y-1/2 gap-2"
           >
             <Sparkles size={20} />
             Generate GEM
