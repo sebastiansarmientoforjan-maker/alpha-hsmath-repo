@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 import { BrutalCard, BrutalInput, BrutalButton } from '@/components/ui';
 import { FileUploader } from '@/components/ui/FileUploader';
-import { uploadHtmlReport, uploadHtmlFromString, extractMetadataFromHTML, ScrollytellingReport } from '@/lib/uploadHtmlReport';
+import { uploadHtmlReport, ScrollytellingReport } from '@/lib/uploadHtmlReport';
 import { getAllDecisionLogs, DecisionLog } from '@/lib/decisionLogs';
 import { getAllInvestigations, Investigation } from '@/lib/investigations';
 import { getAllReports, updateReport, deleteReport } from '@/lib/scrollytellingReports';
 import { attachReportToDecision } from '@/lib/decisionLogReports';
 import { attachReportToInvestigation } from '@/lib/investigationReports';
-import { Edit, Trash2, AlertTriangle, ExternalLink, FileText, Upload, Sparkles } from 'lucide-react';
+import { Edit, Trash2, AlertTriangle, ExternalLink, Upload } from 'lucide-react';
 
 export default function ScrollytellingAdmin() {
   const [title, setTitle] = useState('');
@@ -27,10 +27,6 @@ export default function ScrollytellingAdmin() {
   const [editingReport, setEditingReport] = useState<(ScrollytellingReport & { id: string }) | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterAssociation, setFilterAssociation] = useState<string>('all');
-
-  // HTML Paste Mode
-  const [inputMode, setInputMode] = useState<'file' | 'paste'>('paste');
-  const [htmlContent, setHtmlContent] = useState('');
 
   useEffect(() => {
     loadInvestigations();
@@ -62,75 +58,6 @@ export default function ScrollytellingAdmin() {
       setReports(data);
     } catch (error) {
       console.error('Failed to load reports:', error);
-    }
-  };
-
-  const handleExtractMetadata = () => {
-    if (!htmlContent.trim()) {
-      alert('Please paste HTML content first');
-      return;
-    }
-
-    try {
-      const metadata = extractMetadataFromHTML(htmlContent);
-      setTitle(metadata.title);
-      setDescription(metadata.description);
-      setTags(metadata.tags.join(', '));
-      alert('Metadata extracted successfully! Review and adjust before uploading.');
-    } catch (error) {
-      console.error('Failed to extract metadata:', error);
-      alert('Failed to extract metadata. Please check your HTML format.');
-    }
-  };
-
-  const handleUploadFromPaste = async () => {
-    if (!htmlContent.trim()) {
-      alert('Please paste HTML content first');
-      return;
-    }
-
-    if (!title) {
-      alert('Please enter a title for the report');
-      return;
-    }
-
-    try {
-      const tagsArray = tags.split(',').map((tag) => tag.trim()).filter(Boolean);
-
-      const reportId = await uploadHtmlFromString(
-        htmlContent,
-        title,
-        tagsArray,
-        status,
-        associationType === 'investigation' ? selectedInvestigation || null : null,
-        associationType === 'decision' ? selectedDecisionLog || null : null,
-        description,
-        reportType
-      );
-
-      // Attach to the appropriate parent
-      if (associationType === 'investigation' && selectedInvestigation) {
-        await attachReportToInvestigation(selectedInvestigation, reportId);
-      } else if (associationType === 'decision' && selectedDecisionLog) {
-        await attachReportToDecision(selectedDecisionLog, reportId);
-      }
-
-      setTitle('');
-      setTags('');
-      setStatus('Draft');
-      setDescription('');
-      setReportType('Other');
-      setAssociationType('none');
-      setSelectedInvestigation('');
-      setSelectedDecisionLog('');
-      setHtmlContent('');
-      loadReports();
-      loadInvestigations();
-      loadDecisionLogs();
-      alert('Report uploaded successfully!');
-    } catch (error) {
-      console.error('Upload error:', error);
-      alert('Failed to upload report. Make sure Firebase is configured correctly.');
     }
   };
 
@@ -363,75 +290,13 @@ export default function ScrollytellingAdmin() {
       </BrutalCard>
 
       <BrutalCard className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-dark">HTML Content</h2>
-          <div className="flex gap-2 border-4 border-dark">
-            <button
-              onClick={() => setInputMode('paste')}
-              className={`px-4 py-2 font-bold transition-all ${
-                inputMode === 'paste'
-                  ? 'bg-cool-blue text-dark'
-                  : 'bg-white text-dark hover:bg-bg-light'
-              }`}
-            >
-              <FileText size={16} className="inline mr-2" />
-              Paste HTML
-            </button>
-            <button
-              onClick={() => setInputMode('file')}
-              className={`px-4 py-2 font-bold transition-all border-l-4 border-dark ${
-                inputMode === 'file'
-                  ? 'bg-cool-blue text-dark'
-                  : 'bg-white text-dark hover:bg-bg-light'
-              }`}
-            >
-              <Upload size={16} className="inline mr-2" />
-              Upload File
-            </button>
-          </div>
+        <div className="mb-4">
+          <h2 className="text-xl font-bold text-dark">Upload HTML File</h2>
+          <p className="text-sm text-dark/60 mt-2">
+            Upload HTML files generated by AI. Manual HTML editing is not supported in this version.
+          </p>
         </div>
-
-        {inputMode === 'paste' ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-dark font-bold mb-2 text-sm uppercase tracking-wide">
-                Paste HTML Code
-              </label>
-              <textarea
-                value={htmlContent}
-                onChange={(e) => setHtmlContent(e.target.value)}
-                placeholder="Paste your complete HTML document here (including <!DOCTYPE html>, <head>, <body>, etc.)"
-                rows={12}
-                className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-mono text-sm focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] resize-y"
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <BrutalButton
-                onClick={handleExtractMetadata}
-                variant="secondary"
-                disabled={!htmlContent.trim()}
-              >
-                <Sparkles size={20} className="inline mr-2" />
-                Extract Metadata
-              </BrutalButton>
-              <BrutalButton
-                onClick={handleUploadFromPaste}
-                variant="primary"
-                disabled={!htmlContent.trim() || !title}
-              >
-                <Upload size={20} className="inline mr-2" />
-                Upload Report
-              </BrutalButton>
-            </div>
-
-            <p className="text-sm text-dark/60 italic">
-              💡 Tip: Click "Extract Metadata" to automatically fill Title, Description, and Tags from your HTML
-            </p>
-          </div>
-        ) : (
-          <FileUploader onUpload={handleUpload} accept=".html" multiple />
-        )}
+        <FileUploader onUpload={handleUpload} accept=".html" multiple />
       </BrutalCard>
 
       {/* Report Management */}
