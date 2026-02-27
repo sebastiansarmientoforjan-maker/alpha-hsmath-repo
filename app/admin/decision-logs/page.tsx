@@ -1167,17 +1167,26 @@ Students showed 2.3x faster progression when mastering vertex form first...`}
                 )}
               </div>
 
+              {isGeneratingScrolly && (
+                <div className="mb-4 p-3 bg-alert-orange/20 border-2 border-alert-orange">
+                  <p className="text-sm font-bold text-dark">⚠️ ScrollyTelling Generation in Progress</p>
+                  <p className="text-xs text-dark/70 mt-1">
+                    Please wait until the ScrollyTelling generation completes before saving.
+                  </p>
+                </div>
+              )}
+
               <div className="flex gap-3">
-                <BrutalButton onClick={() => setWizardStep(2)} variant="secondary">
+                <BrutalButton onClick={() => setWizardStep(2)} variant="secondary" disabled={isGeneratingScrolly}>
                   ← Back
                 </BrutalButton>
                 <BrutalButton
                   onClick={saveFromGeneratedJSON}
                   variant="primary"
-                  disabled={loading}
+                  disabled={loading || isGeneratingScrolly}
                 >
                   <Save size={20} className="inline mr-2" />
-                  {loading ? 'Saving...' : 'Save Decision Log'}
+                  {loading ? 'Saving...' : isGeneratingScrolly ? 'Wait for generation...' : 'Save Decision Log'}
                 </BrutalButton>
               </div>
             </>
