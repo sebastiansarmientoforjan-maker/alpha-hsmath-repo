@@ -4,22 +4,8 @@ import { useState } from 'react';
 import { BrutalCard, BrutalButton, BrutalInput } from '@/components/ui';
 import { Sparkles, Copy, Check, Download } from 'lucide-react';
 
-const MATHEMATICAL_AREAS = [
-  'Algebra',
-  'Geometry',
-  'Trigonometry',
-  'Calculus',
-  'Statistics',
-  'Probability',
-  'Number Theory',
-  'Linear Algebra',
-  'Discrete Mathematics',
-  'Mathematical Modeling',
-];
-
 export default function GemGenerator() {
-  const [topic, setTopic] = useState('');
-  const [mathArea, setMathArea] = useState('Algebra');
+  const [searchQuery, setSearchQuery] = useState('');
   const [generatedPrompt, setGeneratedPrompt] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -32,9 +18,7 @@ export default function GemGenerator() {
 
 ### INPUT DEL USUARIO
 
-**Topic:** "${topic}"
-
-**Math Area:** "${mathArea}"
+**Research Query:** "${searchQuery}"
 
 ---
 
@@ -74,9 +58,10 @@ Calcula el promedio ponderado usando estos 3 factores exactos:
 
 #### FASE 3: EXTRACT & SYNTHESIZE (Data Processing)
 
-De las fuentes "KEEP", extrae la data mapeándola a los campos de Alpha School:
-* Identifica \`[EVIDENCIA EMPÍRICA]\` (números, % aceleración).
-* Identifica \`[MODELOS PEDAGÓGICOS]\` (estrategias aplicables).
+De las fuentes "KEEP", extrae la data mapeándola a los campos relevantes:
+* Identifica \`[EVIDENCIA EMPÍRICA]\` (números, % aceleración, effect sizes).
+* Identifica \`[MODELOS PEDAGÓGICOS/DIDÁCTICOS]\` (estrategias aplicables).
+* Identifica \`[FRAMEWORKS EDUCATIVOS]\` (marcos teóricos respaldados).
 
 ---
 
@@ -117,7 +102,7 @@ Genera la tabla de auditoría obligatoria ordenada por Score (Mayor a Menor).
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gem-prompt-${topic.replace(/\s+/g, '-').toLowerCase()}.txt`;
+    a.download = `gem-prompt-${searchQuery.slice(0, 50).replace(/\s+/g, '-').toLowerCase()}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -126,64 +111,45 @@ Genera la tabla de auditoría obligatoria ordenada por Score (Mayor a Menor).
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-8">
         <h1 className="text-4xl font-bold text-dark mb-2 flex items-center gap-3">
           <Sparkles size={36} className="text-alert-orange" />
           GEM Generator
         </h1>
         <p className="text-dark/70">
-          Generate Gemini Deep Research prompts with RLM (Active Reading) architecture and weighted source auditing
+          Transform any research query into a Gemini Deep Research prompt with RLM architecture
         </p>
       </div>
 
-      {/* Input Form */}
-      <BrutalCard className="mb-6">
-        <h2 className="text-xl font-bold text-dark mb-4">Research Parameters</h2>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-dark uppercase mb-2">
-              Research Topic *
-            </label>
-            <BrutalInput
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g., Adaptive Learning Pathways in Algebra"
-              className="w-full"
-            />
-            <p className="text-xs text-dark/60 mt-1">
-              Be specific about what you want to investigate
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-dark uppercase mb-2">
-              Mathematical Area *
-            </label>
-            <select
-              value={mathArea}
-              onChange={(e) => setMathArea(e.target.value)}
-              className="w-full border-4 border-dark px-4 py-3 bg-white text-dark font-bold focus:outline-none focus:ring-4 focus:ring-cool-blue"
-            >
-              {MATHEMATICAL_AREAS.map((area) => (
-                <option key={area} value={area}>
-                  {area}
-                </option>
-              ))}
-            </select>
-          </div>
-
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && searchQuery.trim()) {
+                generatePrompt();
+              }
+            }}
+            placeholder="e.g., Adaptive Learning Pathways in Algebra, Formative Assessment Strategies, Growth Mindset in Mathematics..."
+            className="w-full border-4 border-dark px-6 py-5 text-lg bg-white text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue pr-32"
+          />
           <BrutalButton
             onClick={generatePrompt}
-            disabled={!topic.trim()}
+            disabled={!searchQuery.trim()}
             variant="primary"
-            className="w-full gap-2"
+            className="absolute right-2 top-2 gap-2"
           >
             <Sparkles size={20} />
-            Generate GEM Prompt
+            Generate GEM
           </BrutalButton>
         </div>
-      </BrutalCard>
+        <p className="text-xs text-dark/60 mt-2">
+          Enter any topic: mathematics, pedagogy, didactics, educational theory, learning psychology, etc.
+        </p>
+      </div>
 
       {/* Generated Prompt Display */}
       {generatedPrompt && (
@@ -227,12 +193,15 @@ Genera la tabla de auditoría obligatoria ordenada por Score (Mayor a Menor).
             <p className="text-sm font-bold text-dark mb-2">📋 Next Steps:</p>
             <ol className="text-sm text-dark/80 space-y-1 list-decimal list-inside">
               <li>Copy the generated prompt above</li>
-              <li>Open Gemini Deep Research (or Gemini 2.0 Flash Thinking)</li>
+              <li>Open <strong>Gemini Deep Research</strong> or <strong>Gemini 2.0 Flash Thinking</strong></li>
               <li>Paste the prompt and run the research</li>
-              <li>Wait for Gemini to complete all phases (may take 5-10 minutes)</li>
-              <li>Review the Source Reliability Matrix output</li>
-              <li>Use the research findings to manually create an investigation in Research Repository</li>
+              <li>Wait for Gemini to complete all phases (typically 5-10 minutes)</li>
+              <li>Review the <strong>Source Reliability Matrix</strong> with scored sources</li>
+              <li>Use the findings to create an investigation in <strong>Research Repository</strong></li>
             </ol>
+            <p className="text-xs text-dark/60 mt-3">
+              💡 Works for any educational topic: mathematics, pedagogy, didactics, assessment, learning theory, etc.
+            </p>
           </div>
         </BrutalCard>
       )}
