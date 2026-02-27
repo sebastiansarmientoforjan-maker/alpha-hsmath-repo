@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BrutalCard, BrutalButton } from '@/components/ui';
 import { Microscope, Database, FileText, ArrowRight, LogOut, TrendingUp } from 'lucide-react';
@@ -8,11 +9,12 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function Home() {
   const router = useRouter();
   const { user, loading, error, signInWithGoogle, signOut, isAdmin } = useAuth();
+  const [viewAsStakeholder, setViewAsStakeholder] = useState(false);
 
   const handleAccessPortal = () => {
     if (user) {
-      // User is signed in, redirect based on role
-      if (isAdmin) {
+      // User is signed in, redirect based on role or view mode
+      if (isAdmin && !viewAsStakeholder) {
         router.push('/admin');
       } else {
         router.push('/stakeholders');
@@ -41,8 +43,29 @@ export default function Home() {
                   <p className="text-sm font-medium text-dark">{user.displayName || 'User'}</p>
                   <p className="text-xs text-dark/70">{user.email}</p>
                 </div>
+                {isAdmin && (
+                  <div className="flex items-center gap-2 px-3 py-2 border-4 border-dark bg-bg-light">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <span className="text-xs font-bold text-dark uppercase">
+                        {viewAsStakeholder ? 'Viewer Mode' : 'Admin Mode'}
+                      </span>
+                      <button
+                        onClick={() => setViewAsStakeholder(!viewAsStakeholder)}
+                        className={`relative w-12 h-6 border-4 border-dark transition-colors ${
+                          viewAsStakeholder ? 'bg-cool-blue' : 'bg-white'
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-0 w-4 h-4 border-2 border-dark bg-dark transition-transform ${
+                            viewAsStakeholder ? 'translate-x-6' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </label>
+                  </div>
+                )}
                 <BrutalButton onClick={handleAccessPortal} variant="primary">
-                  {isAdmin ? 'Admin Panel' : 'View Reports'}
+                  {isAdmin && !viewAsStakeholder ? 'Admin Panel' : 'View Reports'}
                 </BrutalButton>
                 <BrutalButton onClick={signOut} variant="secondary" className="gap-2">
                   <LogOut size={16} />

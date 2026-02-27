@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BrutalCard } from '@/components/ui';
+import { BrutalCard, BrutalButton } from '@/components/ui';
 import { getAllDecisionLogs, DecisionLog } from '@/lib/decisionLogs';
 import { getAllInvestigations, Investigation } from '@/lib/investigations';
 import { getReportsByDecisionLog, getReportsByInvestigation } from '@/lib/scrollytellingReports';
 import { ScrollytellingReport } from '@/lib/uploadHtmlReport';
-import { FileText, Microscope } from 'lucide-react';
+import { getInvestigationsForDecision } from '@/lib/decisionInvestigations';
+import { FileText, Microscope, X } from 'lucide-react';
 import Link from 'next/link';
 
 type TabType = 'investigations' | 'decisions';
@@ -24,6 +25,10 @@ export default function Gallery() {
   const [decisions, setDecisions] = useState<DecisionLog[]>([]);
   const [selectedDecision, setSelectedDecision] = useState<DecisionLog | null>(null);
   const [decisionReports, setDecisionReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
+
+  // Investigations Modal
+  const [showInvestigationsModal, setShowInvestigationsModal] = useState(false);
+  const [linkedInvestigations, setLinkedInvestigations] = useState<(Investigation & { id: string })[]>([]);
 
   useEffect(() => {
     loadData();
@@ -353,6 +358,24 @@ export default function Gallery() {
                         <p className="text-dark font-serif whitespace-pre-wrap">{selectedDecision.schoolContext}</p>
                       </div>
                     )}
+                    {selectedDecision.id && (
+                      <div>
+                        <BrutalButton
+                          onClick={async () => {
+                            if (selectedDecision.id) {
+                              const investigations = await getInvestigationsForDecision(selectedDecision.id);
+                              setLinkedInvestigations(investigations);
+                              setShowInvestigationsModal(true);
+                            }
+                          }}
+                          variant="secondary"
+                          className="gap-2"
+                        >
+                          <Microscope size={16} />
+                          View Research Foundation ({selectedDecision.investigationCount || 0})
+                        </BrutalButton>
+                      </div>
+                    )}
                     <div>
                       <h3 className="text-sm font-bold text-dark uppercase mb-2">
                         Reports ({decisionReports.length})
@@ -377,6 +400,72 @@ export default function Gallery() {
           </div>
         )}
       </div>
+
+      {/* Investigations Modal */}
+      {showInvestigationsModal && (
+        <div className="fixed inset-0 bg-dark/50 flex items-center justify-center p-6 z-50">
+          <div className="bg-white border-4 border-dark max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="sticky top-0 bg-cool-blue border-b-4 border-dark p-6 flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-dark">Research Foundation</h3>
+              <button
+                onClick={() => setShowInvestigationsModal(false)}
+                className="p-2 border-2 border-dark bg-white hover:bg-alert-orange transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              {linkedInvestigations.length === 0 ? (
+                <p className="text-dark/60 text-center py-8">No linked investigations found.</p>
+              ) : (
+                <div className="space-y-4">
+                  {linkedInvestigations.map((inv) => (
+                    <div key={inv.id} className="border-4 border-dark bg-bg-light p-6">
+                      <h4 className="text-xl font-bold text-dark mb-3">{inv.title}</h4>
+
+                      <div className="flex gap-2 mb-4">
+                        <span className="px-3 py-1 border-2 border-dark bg-cool-blue font-bold text-sm">
+                          {inv.researchType}
+                        </span>
+                        <span className="px-3 py-1 border-2 border-dark bg-white font-bold text-sm">
+                          {inv.mathematicalArea}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-xs font-bold text-dark uppercase mb-1">Description</p>
+                          <p className="text-dark font-serif">{inv.description}</p>
+                        </div>
+
+                        {inv.keyFindings && (
+                          <div>
+                            <p className="text-xs font-bold text-dark uppercase mb-1">Key Findings</p>
+                            <p className="text-dark font-serif">{inv.keyFindings}</p>
+                          </div>
+                        )}
+
+                        {inv.methodology && (
+                          <div>
+                            <p className="text-xs font-bold text-dark uppercase mb-1">Methodology</p>
+                            <p className="text-dark font-serif">{inv.methodology}</p>
+                          </div>
+                        )}
+
+                        {inv.impactMetrics && (
+                          <div className="p-3 border-2 border-dark bg-cool-blue/20">
+                            <p className="text-dark font-bold text-sm">📈 {inv.impactMetrics}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
