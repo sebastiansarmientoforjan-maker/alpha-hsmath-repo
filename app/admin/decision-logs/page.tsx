@@ -46,6 +46,11 @@ export default function DecisionLogsAdmin() {
     schoolContext: '',
   });
 
+  // Parser state
+  const [showTextParser, setShowTextParser] = useState(false);
+  const [rawDocText, setRawDocText] = useState('');
+  const [selectedInvestigationIds, setSelectedInvestigationIds] = useState<string[]>([]);
+
   useEffect(() => {
     loadLogs();
     loadAllReports();
@@ -162,6 +167,100 @@ export default function DecisionLogsAdmin() {
     }
   };
 
+  // Parser functions
+  const extractSection = (text: string, keywords: string[]): string => {
+    const keywordPattern = keywords.join('|');
+    const regex = new RegExp(
+      `(?:^|\\n)\\s*(?:#{1,6}\\s*)?(?:${keywordPattern})[:\\s]*\\n([\\s\\S]*?)(?=\\n\\s*#{1,6}\\s|\\n\\n[A-Z]|$)`,
+      'im'
+    );
+    const match = text.match(regex);
+    if (match && match[1]) return match[1].trim();
+
+    const inlineRegex = new RegExp(`(?:${keywordPattern})[:\\s]+([^\\n]+)`, 'im');
+    const inlineMatch = text.match(inlineRegex);
+    return inlineMatch ? inlineMatch[1].trim() : '';
+  };
+
+  const parseDocumentationText = () => {
+    if (!rawDocText.trim()) {
+      alert('Please paste documentation text first');
+      return;
+    }
+
+    try {
+      const lines = rawDocText.split('\n').filter(line => line.trim());
+
+      // Extract title (first line or line with #)
+      const titleLine = lines.find(l => l.startsWith('#')) || lines[0];
+      const title = titleLine.replace(/^#+\s*/, '').trim();
+
+      // Extract main sections
+      const purpose = extractSection(rawDocText, ['purpose', 'propósito', 'objective', 'objetivo']);
+      const context = extractSection(rawDocText, ['context', 'contexto', 'background', 'antecedentes']);
+      const decision = extractSection(rawDocText, ['decision', 'decisión', 'approach', 'solution']);
+      const rationale = extractSection(rawDocText, ['rationale', 'justification', 'justificación', 'why', 'por qué']);
+      const evidence = extractSection(rawDocText, ['evidence', 'evidencia', 'data', 'results', 'findings']);
+
+      // Build rationale from available content
+      let fullRationale = '';
+      if (purpose) fullRationale += `## Purpose\n${purpose}\n\n`;
+      if (context) fullRationale += `## Context\n${context}\n\n`;
+      if (decision) fullRationale += `## Decision\n${decision}\n\n`;
+      if (rationale) fullRationale += `## Rationale\n${rationale}\n\n`;
+      if (evidence) fullRationale += `## Evidence\n${evidence}\n\n`;
+
+      // If no structured rationale, use the full text
+      if (!fullRationale.trim()) {
+        fullRationale = rawDocText;
+      }
+
+      // Detect taxonomy based on keywords
+      let taxonomy: DecisionLog['taxonomy'] = 'Pedagogical Adjustment';
+      const lowerText = rawDocText.toLowerCase();
+      if (lowerText.includes('refut') || lowerText.includes('experiment')) {
+        taxonomy = 'Experimental Refutation';
+      } else if (lowerText.includes('new model') || lowerText.includes('didactic model') || lowerText.includes('nuevo modelo')) {
+        taxonomy = 'New Didactic Model';
+      }
+
+      // Detect status
+      let status: DecisionLog['status'] = 'Under Debate';
+      if (lowerText.includes('validated') || lowerText.includes('validado') || lowerText.includes('empirically')) {
+        status = 'Empirically Validated';
+      } else if (lowerText.includes('refuted') || lowerText.includes('refutado')) {
+        status = 'Refuted';
+      }
+
+      // Extract author if present
+      const authorMatch = rawDocText.match(/(?:author|autor|by|created by)[:\s]+([^\n]+)/i);
+      const author = authorMatch ? authorMatch[1].trim() : 'Sebastian Sarmiento';
+
+      // Extract school context if present
+      const schoolMatch = rawDocText.match(/(?:school|escuela|hub|sede)[:\s]+([^\n]+)/i);
+      const schoolContext = schoolMatch ? schoolMatch[1].trim() : '';
+
+      // Pre-fill form
+      setFormData({
+        title: title || 'Untitled Decision',
+        taxonomy,
+        status,
+        rationale: fullRationale.trim(),
+        evidence_url: '',
+        author,
+        schoolContext,
+      });
+
+      setShowTextParser(false);
+      setShowForm(true);
+      setEditingId(null);
+      alert('✅ Documentation parsed! Review the form and select related investigations before saving.');
+    } catch (error) {
+      console.error('Parse error:', error);
+      alert('Error parsing documentation. Please check the format and try again.');
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       title: '',
@@ -174,6 +273,7 @@ export default function DecisionLogsAdmin() {
     });
     setEditingId(null);
     setShowForm(false);
+    setSelectedInvestigationIds([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -181,13 +281,25 @@ export default function DecisionLogsAdmin() {
     setLoading(true);
 
     try {
+      let logId: string;
+
       if (editingId) {
         await updateDecisionLog(editingId, formData);
+        logId = editingId;
       } else {
-        await createDecisionLog(formData);
+        logId = await createDecisionLog(formData);
       }
+
+      // Link selected investigations
+      if (selectedInvestigationIds.length > 0 && logId) {
+        for (const invId of selectedInvestigationIds) {
+          await linkInvestigationToDecision(logId, invId);
+        }
+      }
+
       await loadLogs();
       resetForm();
+      alert(`Decision log saved successfully!${selectedInvestigationIds.length > 0 ? ` Linked to ${selectedInvestigationIds.length} investigation(s).` : ''}`);
     } catch (error) {
       console.error('Failed to save log:', error);
       alert('Failed to save. Make sure Firebase is configured correctly.');
@@ -353,15 +465,93 @@ export default function DecisionLogsAdmin() {
             Document pedagogical decisions and experimental findings
           </p>
         </div>
-        <BrutalButton
-          onClick={() => setShowForm(!showForm)}
-          variant="primary"
-          className="flex items-center gap-2"
-        >
-          {showForm ? <X size={20} /> : <Plus size={20} />}
-          {showForm ? 'Cancel' : 'New Log'}
-        </BrutalButton>
+        <div className="flex gap-3">
+          <BrutalButton
+            onClick={() => {
+              setShowTextParser(!showTextParser);
+              setShowForm(false);
+            }}
+            variant="secondary"
+            className="flex items-center gap-2"
+          >
+            <FileText size={20} />
+            {showTextParser ? 'Close Parser' : 'Generate from Documentation'}
+          </BrutalButton>
+          <BrutalButton
+            onClick={() => {
+              setShowForm(!showForm);
+              setShowTextParser(false);
+            }}
+            variant="primary"
+            className="flex items-center gap-2"
+          >
+            {showForm ? <X size={20} /> : <Plus size={20} />}
+            {showForm ? 'Cancel' : 'New Log'}
+          </BrutalButton>
+        </div>
       </div>
+
+      {/* Text Parser */}
+      {showTextParser && (
+        <BrutalCard className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-dark">Generate Decision Log from Documentation</h2>
+              <p className="text-sm text-dark/70 mt-1">
+                Paste your documentation below and we'll automatically extract the decision log structure
+              </p>
+            </div>
+            <button
+              onClick={() => setShowTextParser(false)}
+              className="p-2 border-2 border-dark bg-white hover:bg-alert-orange transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <textarea
+            value={rawDocText}
+            onChange={(e) => setRawDocText(e.target.value)}
+            placeholder={`Paste your documentation here. Example:
+
+# Alpha Desmos SAT Training Platform
+
+## Purpose
+Enable students to master progressive training units through an interactive, split-screen interface with an embedded calculator.
+
+## Context
+Currently students lack practical training for Digital SAT Math section Desmos calculator skills...
+
+## Decision
+Created a comprehensive training platform with Unit A (Regression Analysis) and Unit B (Visual Problem Solving)...
+
+## Rationale
+Speed is a critical component of mastery. The platform enforces a "Platinum" tier requiring correct answers in <6 minutes...
+
+## Evidence
+Students using the platform showed 2.3x faster progression when mastering vertex form before standard form...`}
+            rows={16}
+            className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-mono text-sm focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] resize-y mb-4"
+          />
+
+          <div className="flex gap-3">
+            <BrutalButton
+              onClick={parseDocumentationText}
+              variant="primary"
+              disabled={!rawDocText.trim()}
+            >
+              <FileText size={20} className="inline mr-2" />
+              Parse & Generate Decision Log
+            </BrutalButton>
+            <BrutalButton
+              onClick={() => setRawDocText('')}
+              variant="secondary"
+            >
+              Clear
+            </BrutalButton>
+          </div>
+        </BrutalCard>
+      )}
 
       {/* Form */}
       {showForm && (
@@ -459,6 +649,56 @@ export default function DecisionLogsAdmin() {
               onChange={(e) => setFormData({ ...formData, author: e.target.value })}
               required
             />
+
+            {/* Related Investigations Selector */}
+            {!editingId && investigations.length > 0 && (
+              <div className="border-4 border-cool-blue bg-cool-blue/10 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Microscope size={20} className="text-dark" />
+                  <h3 className="text-lg font-bold text-dark">Link Related Investigations (Optional)</h3>
+                </div>
+                <p className="text-sm text-dark/70 mb-3">
+                  Select investigations that informed this decision
+                </p>
+                <div className="max-h-48 overflow-y-auto space-y-2 bg-white border-2 border-dark p-3">
+                  {investigations.map((inv) => (
+                    <label
+                      key={inv.id}
+                      className="flex items-start gap-3 p-2 hover:bg-cool-blue/20 transition-colors cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedInvestigationIds.includes(inv.id || '')}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedInvestigationIds([...selectedInvestigationIds, inv.id || '']);
+                          } else {
+                            setSelectedInvestigationIds(selectedInvestigationIds.filter(id => id !== inv.id));
+                          }
+                        }}
+                        className="mt-1 border-2 border-dark"
+                      />
+                      <div className="flex-1">
+                        <p className="font-bold text-dark text-sm">{inv.title}</p>
+                        <div className="flex gap-2 mt-1">
+                          <span className="px-2 py-0.5 border border-dark bg-white text-xs font-medium">
+                            {inv.researchType}
+                          </span>
+                          <span className="px-2 py-0.5 border border-dark bg-white text-xs font-medium">
+                            {inv.mathematicalArea}
+                          </span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                {selectedInvestigationIds.length > 0 && (
+                  <p className="text-sm text-dark font-bold mt-2">
+                    ✓ {selectedInvestigationIds.length} investigation(s) selected
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="flex gap-4 pt-4">
               <BrutalButton type="submit" variant="primary" disabled={loading}>
