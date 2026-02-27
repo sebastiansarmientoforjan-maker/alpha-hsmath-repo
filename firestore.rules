@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if user is authenticated with @alpha.school email
+    function isAlphaSchoolUser() {
+      return request.auth != null &&
+             request.auth.token.email.matches('.*@alpha\\.school$');
+    }
+
+    // GEM Prompts Collection
+    match /gemPrompts/{promptId} {
+      // Anyone authenticated with @alpha.school can read
+      allow read: if isAlphaSchoolUser();
+
+      // Anyone authenticated with @alpha.school can create/update/delete
+      allow create, update, delete: if isAlphaSchoolUser();
+    }
+
+    // Research Repository Collection
+    match /researchItems/{itemId} {
+      allow read: if isAlphaSchoolUser();
+      allow create, update, delete: if isAlphaSchoolUser();
+    }
+
+    // Decision Logs Collection
+    match /decisionLogs/{logId} {
+      allow read: if isAlphaSchoolUser();
+      allow create, update, delete: if isAlphaSchoolUser();
+    }
+
+    // Scrollytelling Reports Collection
+    match /scrollytellingReports/{reportId} {
+      allow read: if isAlphaSchoolUser();
+      allow create, update, delete: if isAlphaSchoolUser();
+    }
+
+    // Stakeholder Approvals Collection
+    match /stakeholderApprovals/{approvalId} {
+      allow read: if isAlphaSchoolUser();
+      allow create, update, delete: if isAlphaSchoolUser();
+    }
+
+    // Default: deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
