@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BrutalCard, BrutalButton } from '@/components/ui';
-import { Microscope, Database, FileText, ArrowRight, LogOut } from 'lucide-react';
+import { Microscope, Database, FileText, ArrowRight, LogOut, TrendingUp } from 'lucide-react';
 import { auth, googleProvider } from '@/lib/firebase';
 import { signInWithRedirect, getRedirectResult, signOut, User } from 'firebase/auth';
 import { isAdmin, isAuthorizedViewer } from '@/lib/stakeholderApproval';
