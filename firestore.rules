@@ -42,6 +42,12 @@ service cloud.firestore {
       allow create, update, delete: if isAlphaSchoolUser();
     }
 
+    // Investigations Collection
+    match /investigations/{investigationId} {
+      allow read: if isAlphaSchoolUser();
+      allow create, update, delete: if isAlphaSchoolUser();
+    }
+
     // Default: deny all other access
     match /{document=**} {
       allow read, write: if false;

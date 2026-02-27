@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { BrutalCard, BrutalButton, BrutalInput } from '@/components/ui';
-import { Sparkles, Copy, Check, Download, Save, FileText } from 'lucide-react';
+import { Sparkles, Copy, Check, Download, Save, FileText, Wand2, X } from 'lucide-react';
 import { saveGemPrompt } from '@/lib/gemPrompts';
 import { useAuth } from '@/contexts/AuthContext';
+import { createInvestigation, ResearchType, MathematicalArea } from '@/lib/investigations';
+import { Timestamp } from 'firebase/firestore';
 
 type PromptEngine = 'gemini' | 'perplexity';
 
@@ -19,6 +21,14 @@ export default function GemGenerator() {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showRemixModal, setShowRemixModal] = useState(false);
+  const [remixData, setRemixData] = useState({
+    title: '',
+    description: '',
+    researchType: 'Systematic Literature Review' as ResearchType,
+    mathematicalArea: 'Algebra' as MathematicalArea,
+    author: '',
+  });
 
   // Get current month/year for dynamic Recency calculation
   const getCurrentMonthYear = () => {
@@ -226,6 +236,61 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
     }
   };
 
+  const openRemixModal = () => {
+    if (!user) {
+      alert('You need to sign in to create research investigations.');
+      return;
+    }
+    // Pre-fill with search query
+    setRemixData({
+      title: searchQuery,
+      description: `Research investigation based on ${activeEngine.toUpperCase()} prompt: ${searchQuery}`,
+      researchType: 'Systematic Literature Review',
+      mathematicalArea: 'Algebra',
+      author: user.displayName || user.email || '',
+    });
+    setShowRemixModal(true);
+  };
+
+  const saveRemixToInvestigation = async () => {
+    if (!user) {
+      alert('You need to sign in to create investigations.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await createInvestigation({
+        title: remixData.title,
+        description: remixData.description,
+        researchType: remixData.researchType,
+        mathematicalArea: remixData.mathematicalArea,
+        status: 'In Progress',
+        keyFindings: `Generated from ${activeEngine.toUpperCase()} prompt. Awaiting research execution.`,
+        methodology: `Using ${activeEngine === 'gemini' ? 'Gemini Deep Research' : 'Perplexity AI'} with RLM architecture (Read, List, Mono-cite).\n\nPrompt Template:\n${getActivePrompt().substring(0, 500)}...`,
+        author: remixData.author,
+        startDate: Timestamp.now(),
+        searchKeywords: searchQuery.split(',').map(k => k.trim()),
+        databases: ['Google Scholar', 'ERIC', 'ResearchGate', 'Semantic Scholar'],
+      });
+      alert('✅ Research Investigation created successfully!');
+      setShowRemixModal(false);
+      // Reset form
+      setRemixData({
+        title: '',
+        description: '',
+        researchType: 'Systematic Literature Review',
+        mathematicalArea: 'Algebra',
+        author: '',
+      });
+    } catch (error) {
+      console.error('Error creating investigation:', error);
+      alert('Failed to create investigation. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div>
       <div className="mb-8">
@@ -352,6 +417,14 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
                 <Download size={16} />
                 Download
               </BrutalButton>
+              <BrutalButton
+                onClick={openRemixModal}
+                variant="primary"
+                className="gap-2 bg-alert-orange border-alert-orange"
+              >
+                <Wand2 size={16} />
+                Remix to Research
+              </BrutalButton>
             </div>
           </div>
 
@@ -390,6 +463,137 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
             </p>
           </div>
         </BrutalCard>
+      )}
+
+      {/* Remix to Research Investigation Modal */}
+      {showRemixModal && (
+        <div className="fixed inset-0 bg-dark/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border-4 border-dark max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-dark flex items-center gap-2">
+                  <Wand2 size={28} className="text-alert-orange" />
+                  Remix to Research Investigation
+                </h2>
+                <button
+                  onClick={() => setShowRemixModal(false)}
+                  className="p-2 hover:bg-bg-light transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-dark mb-2">
+                    Investigation Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={remixData.title}
+                    onChange={(e) => setRemixData({ ...remixData, title: e.target.value })}
+                    className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                    placeholder="e.g., Adaptive Learning Pathways in Algebra"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-dark mb-2">
+                    Description *
+                  </label>
+                  <textarea
+                    value={remixData.description}
+                    onChange={(e) => setRemixData({ ...remixData, description: e.target.value })}
+                    rows={4}
+                    className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                    placeholder="Executive summary of the investigation..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-dark mb-2">
+                      Research Type *
+                    </label>
+                    <select
+                      value={remixData.researchType}
+                      onChange={(e) => setRemixData({ ...remixData, researchType: e.target.value as ResearchType })}
+                      className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                    >
+                      <option>Systematic Literature Review</option>
+                      <option>Learning Pattern Analysis</option>
+                      <option>Content Development</option>
+                      <option>AI-Powered Pathways</option>
+                      <option>Student Data Analysis</option>
+                      <option>Pedagogical Innovation</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-dark mb-2">
+                      Mathematical Area *
+                    </label>
+                    <select
+                      value={remixData.mathematicalArea}
+                      onChange={(e) => setRemixData({ ...remixData, mathematicalArea: e.target.value as MathematicalArea })}
+                      className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                    >
+                      <option>Elementary Arithmetic</option>
+                      <option>Algebra</option>
+                      <option>Geometry</option>
+                      <option>Calculus</option>
+                      <option>Statistics</option>
+                      <option>Cross-Domain</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-dark mb-2">
+                    Author *
+                  </label>
+                  <input
+                    type="text"
+                    value={remixData.author}
+                    onChange={(e) => setRemixData({ ...remixData, author: e.target.value })}
+                    className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                    placeholder="Your name"
+                  />
+                </div>
+
+                <div className="p-4 border-4 border-cool-blue bg-cool-blue/10">
+                  <p className="text-sm font-bold text-dark mb-2">📝 Auto-Generated Fields:</p>
+                  <ul className="text-sm text-dark/70 space-y-1">
+                    <li>• <strong>Status:</strong> In Progress</li>
+                    <li>• <strong>Methodology:</strong> Using {activeEngine === 'gemini' ? 'Gemini Deep Research' : 'Perplexity AI'} with RLM architecture</li>
+                    <li>• <strong>Search Keywords:</strong> Extracted from query</li>
+                    <li>• <strong>Start Date:</strong> Today</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <BrutalButton
+                  onClick={saveRemixToInvestigation}
+                  variant="primary"
+                  className="flex-1 gap-2"
+                  disabled={saving || !remixData.title || !remixData.description || !remixData.author}
+                >
+                  <Save size={16} />
+                  {saving ? 'Creating...' : 'Create Investigation'}
+                </BrutalButton>
+                <BrutalButton
+                  onClick={() => setShowRemixModal(false)}
+                  variant="secondary"
+                  className="gap-2"
+                >
+                  <X size={16} />
+                  Cancel
+                </BrutalButton>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
