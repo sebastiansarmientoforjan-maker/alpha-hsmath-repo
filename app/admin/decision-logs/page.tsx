@@ -302,9 +302,8 @@ export default function DecisionLogsAdmin() {
       }
 
       const data = await response.json();
-      setScrollytellingHTML(data.html);
 
-      // Step 2: Upload to Firebase Storage as Draft
+      // Step 2: Upload to Firestore as Draft (BEFORE showing UI message)
       const reportId = await uploadHtmlFromString(
         data.html,
         generatedJSON.title,
@@ -322,11 +321,14 @@ export default function DecisionLogsAdmin() {
         generatedScrollytellingId: reportId,
       });
 
+      // Step 4: NOW set the HTML to show success message (AFTER Firestore save)
+      setScrollytellingHTML(data.html);
+
       // Reset state BEFORE showing alert to avoid blocking
       setIsGeneratingScrolly(false);
 
       // Now show success message
-      alert(`✅ ScrollyTelling HTML generated and uploaded!\n\nStatus: Draft (pending approval)\nTokens: Input ${data.usage.inputTokens.toLocaleString()} | Output ${data.usage.outputTokens.toLocaleString()}\n\nThe report has been created and will be linked to this decision when you save.\n\nGo to Scrollytelling Reports to approve and publish.`);
+      alert(`✅ ScrollyTelling HTML generated and saved!\n\nStatus: Draft (pending approval)\nTokens: Input ${data.usage.inputTokens.toLocaleString()} | Output ${data.usage.outputTokens.toLocaleString()}\n\nThe report has been saved to Firestore and will be linked to this decision when you save.\n\nGo to Scrollytelling Reports to view and approve.`);
     } catch (error: any) {
       console.error('❌ ScrollyTelling generation error:', error);
       console.error('Error stack:', error.stack);
@@ -1067,23 +1069,40 @@ Students showed 2.3x faster progression when mastering vertex form first...`}
                     </BrutalButton>
                   )}
                 </div>
-                {scrollytellingHTML && (
+                {scrollytellingHTML && generatedJSON.generatedScrollytellingId && (
                   <div className="mt-3 p-3 bg-green-500/20 border-2 border-green-500">
-                    <p className="text-sm font-bold text-dark">✅ ScrollyTelling Report Created!</p>
+                    <p className="text-sm font-bold text-dark">✅ ScrollyTelling Report Saved!</p>
                     <p className="text-xs text-dark/70 mt-1">
                       Status: <strong>Draft</strong> (pending approval)
                     </p>
                     <p className="text-xs text-dark/70 mt-1">
+                      Report ID: <span className="font-mono text-xs">{generatedJSON.generatedScrollytellingId}</span>
+                    </p>
+                    <p className="text-xs text-dark/70 mt-1">
                       The report will be linked to this decision when you save.
                     </p>
-                    <a
-                      href="/admin/scrollytelling"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block mt-2 px-3 py-1 border-2 border-dark bg-cool-blue hover:bg-white text-xs font-bold transition-colors"
-                    >
-                      Go to Scrollytelling Reports →
-                    </a>
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => {
+                          const newWindow = window.open('', '_blank');
+                          if (newWindow) {
+                            newWindow.document.write(scrollytellingHTML);
+                            newWindow.document.close();
+                          }
+                        }}
+                        className="px-3 py-1 border-2 border-dark bg-white hover:bg-cool-blue text-xs font-bold transition-colors"
+                      >
+                        👁️ Preview Report
+                      </button>
+                      <a
+                        href="/admin/scrollytelling"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block px-3 py-1 border-2 border-dark bg-cool-blue hover:bg-white text-xs font-bold transition-colors"
+                      >
+                        Go to Reports List →
+                      </a>
+                    </div>
                   </div>
                 )}
               </div>
