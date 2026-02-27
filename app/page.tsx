@@ -1,100 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { BrutalCard, BrutalButton } from '@/components/ui';
 import { Microscope, Database, FileText, ArrowRight, LogOut, TrendingUp } from 'lucide-react';
-import { auth, googleProvider } from '@/lib/firebase';
-import { signInWithRedirect, getRedirectResult, signOut, User } from 'firebase/auth';
-import { isAdmin, isAuthorizedViewer } from '@/lib/stakeholderApproval';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Check if we already processed the redirect to prevent loops
-    const redirectProcessed = sessionStorage.getItem('auth_redirect_processed');
-
-    // Handle redirect result from Google sign-in only once
-    const handleRedirectResult = async () => {
-      if (redirectProcessed) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          // Mark as processed to prevent re-processing
-          sessionStorage.setItem('auth_redirect_processed', 'true');
-
-          const userEmail = result.user.email;
-
-          // Only redirect immediately after successful OAuth flow
-          if (isAdmin(userEmail)) {
-            router.push('/admin');
-            return;
-          } else if (isAuthorizedViewer(userEmail)) {
-            router.push('/stakeholders');
-            return;
-          } else {
-            await signOut(auth);
-            alert('Access denied. Only @alpha.school emails are authorized.');
-          }
-        }
-      } catch (error) {
-        console.error('Redirect result error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    handleRedirectResult();
-
-    // Listen for auth state changes but don't auto-redirect
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [router]);
-
-  const handleGoogleSignIn = async () => {
-    try {
-      // Clear any previous redirect flag before starting new auth flow
-      sessionStorage.removeItem('auth_redirect_processed');
-      await signInWithRedirect(auth, googleProvider);
-    } catch (error) {
-      console.error('Sign in error:', error);
-      alert('Failed to sign in. Please try again.');
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      // Clear the redirect processed flag so user can sign in again
-      sessionStorage.removeItem('auth_redirect_processed');
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
-  };
+  const { user, loading, error, signInWithGoogle, signOut, isAdmin } = useAuth();
 
   const handleAccessPortal = () => {
     if (user) {
       // User is signed in, redirect based on role
-      if (isAdmin(user.email)) {
+      if (isAdmin) {
         router.push('/admin');
-      } else if (isAuthorizedViewer(user.email)) {
+      } else {
         router.push('/stakeholders');
       }
     } else {
       // Not signed in, trigger Google sign in
-      handleGoogleSignIn();
+      signInWithGoogle();
     }
   };
 
@@ -117,15 +42,15 @@ export default function Home() {
                   <p className="text-xs text-dark/70">{user.email}</p>
                 </div>
                 <BrutalButton onClick={handleAccessPortal} variant="primary">
-                  {isAdmin(user.email) ? 'Admin Panel' : 'View Reports'}
+                  {isAdmin ? 'Admin Panel' : 'View Reports'}
                 </BrutalButton>
-                <BrutalButton onClick={handleSignOut} variant="secondary" className="gap-2">
+                <BrutalButton onClick={signOut} variant="secondary" className="gap-2">
                   <LogOut size={16} />
                   Sign Out
                 </BrutalButton>
               </>
             ) : (
-              <BrutalButton onClick={handleGoogleSignIn} variant="primary" className="gap-2">
+              <BrutalButton onClick={signInWithGoogle} variant="primary" className="gap-2">
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -138,6 +63,15 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      {/* Error Display */}
+      {error && (
+        <div className="max-w-6xl mx-auto px-6 pt-6">
+          <div className="p-4 border-4 border-alert-orange bg-alert-orange/10 text-dark">
+            <strong>Error:</strong> {error}
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <main className="max-w-6xl mx-auto px-6 py-16">
