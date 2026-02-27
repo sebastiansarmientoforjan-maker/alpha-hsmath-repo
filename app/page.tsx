@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BrutalCard, BrutalButton } from '@/components/ui';
-import { Microscope, Database, FileText, ArrowRight, TrendingUp, LogOut } from 'lucide-react';
+import { Microscope, Database, FileText, ArrowRight, LogOut } from 'lucide-react';
 import { auth, googleProvider } from '@/lib/firebase';
 import { signInWithRedirect, getRedirectResult, signOut, User } from 'firebase/auth';
 import { isAdmin, isAuthorizedViewer } from '@/lib/stakeholderApproval';
@@ -121,9 +121,6 @@ export default function Home() {
       {/* Hero Section */}
       <main className="max-w-6xl mx-auto px-6 py-16">
         <div className="mb-16">
-          <div className="inline-block px-4 py-2 border-4 border-dark bg-cool-blue text-dark font-bold mb-6">
-            📈 Accelerating Math Mastery 2x Through Data-Driven Insights
-          </div>
           <h2 className="text-5xl font-bold text-dark mb-6">
             Transform Math Education Through AI-Powered Research
           </h2>
@@ -221,37 +218,6 @@ export default function Home() {
             </button>
           </BrutalCard>
         </div>
-
-        {/* Impact Highlight */}
-        <BrutalCard className="bg-alert-orange mb-12">
-          <div className="text-center">
-            <TrendingUp size={48} className="mx-auto mb-4" />
-            <h3 className="text-3xl font-bold text-dark mb-2">
-              Measurable Impact
-            </h3>
-            <p className="text-xl text-dark/80 font-serif">
-              Our data-driven approach has demonstrated <strong>2x acceleration</strong> in concept mastery
-              across multiple mathematical domains and grade levels.
-            </p>
-          </div>
-        </BrutalCard>
-
-        {/* CTA Section */}
-        <BrutalCard className="bg-cool-blue">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div>
-              <h3 className="text-2xl font-bold text-dark mb-2">
-                Ready to Accelerate Learning?
-              </h3>
-              <p className="text-dark/80 font-serif">
-                Start documenting investigations, uploading evidence, and making data-backed decisions.
-              </p>
-            </div>
-            <BrutalButton onClick={handleAccessPortal} variant="secondary" className="bg-white whitespace-nowrap">
-              {user ? (isAdmin(user.email) ? 'Access Admin Panel' : 'View Reports') : 'Sign In to Access'} <ArrowRight size={20} className="inline ml-2" />
-            </BrutalButton>
-          </div>
-        </BrutalCard>
 
         {/* Info Section */}
         <div className="mt-12 pt-12 border-t-4 border-dark">
