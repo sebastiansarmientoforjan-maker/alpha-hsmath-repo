@@ -15,21 +15,20 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let redirected = false;
-
-    // Handle redirect result from Google sign-in
+    // Handle redirect result from Google sign-in only
     const handleRedirectResult = async () => {
       try {
         const result = await getRedirectResult(auth);
         if (result && result.user) {
-          redirected = true;
           const userEmail = result.user.email;
 
-          // Redirect based on role
+          // Only redirect immediately after successful OAuth flow
           if (isAdmin(userEmail)) {
             router.push('/admin');
+            return;
           } else if (isAuthorizedViewer(userEmail)) {
             router.push('/stakeholders');
+            return;
           } else {
             await signOut(auth);
             alert('Access denied. Only @alpha.school emails are authorized.');
@@ -37,25 +36,22 @@ export default function Home() {
         }
       } catch (error) {
         console.error('Redirect result error:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
     handleRedirectResult();
 
+    // Listen for auth state changes but don't auto-redirect
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
-      setLoading(false);
-
-      // Auto-redirect authenticated users to their appropriate panel
-      if (currentUser && !redirected) {
-        const userEmail = currentUser.email;
-        if (isAdmin(userEmail)) {
-          router.push('/admin');
-        } else if (isAuthorizedViewer(userEmail)) {
-          router.push('/stakeholders');
-        }
+      // Only set loading to false if we're not in the middle of redirect handling
+      if (!currentUser) {
+        setLoading(false);
       }
     });
+
     return () => unsubscribe();
   }, [router]);
 
