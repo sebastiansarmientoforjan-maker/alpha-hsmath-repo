@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { BrutalCard, BrutalButton, BrutalInput } from '@/components/ui';
-import { Sparkles, Copy, Check, Download, Save } from 'lucide-react';
+import { Sparkles, Copy, Check, Download, Save, FileText } from 'lucide-react';
 import { saveGemPrompt } from '@/lib/gemPrompts';
 
 type PromptEngine = 'gemini' | 'perplexity';
@@ -53,7 +53,26 @@ Do not respond immediately. Execute sequentially the following cognitive operati
 #### PHASE 1: PEEK & SEARCH (Exploration)
 
 1. **Strategy:** Generate technical search keywords (e.g., "meta-analysis", "effect size") combined with the topic.
-2. **Search:** Use your navigation tools to find 8-12 potential academic/technical sources.
+
+2. **Geographic Scope (Context-Aware):** Determine search geography based on topic type:
+   * **Country-Specific Topics** (SAT, AP exams, national curriculum, local standards):
+     - Focus primarily on that country's research (e.g., USA for SAT, UK for A-Levels)
+     - Include comparative international studies when relevant
+     - Search: "[country] + [topic]" (e.g., "USA SAT preparation strategies")
+
+   * **Universal Educational Topics** (pedagogy, didactics, learning theory, math education):
+     - Search GLOBALLY across multiple continents
+     - Required: At least 2-3 different continents/regions represented
+     - Prioritize: USA, Europe, Asia, Latin America, Oceania
+     - Search diverse contexts: "[topic] + Asia", "[topic] + Europe", "[topic] + Latin America"
+     - Value diverse educational systems and cultural perspectives
+
+   * **Hybrid Topics** (standardized testing in general, assessment design):
+     - Start with country of origin but expand to international comparisons
+     - Include perspectives from 3+ different countries
+     - Search: "[topic] + international comparison"
+
+3. **Search:** Use your navigation tools to find 8-12 potential academic/technical sources following the geographic scope above.
 
 #### PHASE 2: AUDIT & FILTER (Source Table Evaluation)
 
@@ -95,11 +114,15 @@ Present the result in two clear parts:
 
 #### PART 1: SOURCE RELIABILITY MATRIX (Visual Audit)
 
-Generate the mandatory audit table ordered by Score (Highest to Lowest).
+Generate the mandatory audit table ordered by Score (Highest to Lowest). **Include geographic origin.**
 
-| Source Name | Date | Category | Logic | Reliability Score | Action |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| [Paper Title] | [YYYY-MM] | [Hard Data/Persp] | [1-sentence justification] | **X.X** | [KEEP/DROP] |
+| Source Name | Date | Category | Country/Region | Logic | Reliability Score | Action |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| [Paper Title] | [YYYY-MM] | [Hard Data/Persp] | [USA/Europe/Asia/etc] | [1-sentence justification] | **X.X** | [KEEP/DROP] |
+
+**Geographic Diversity Check:**
+* Count sources by region: ___ USA, ___ Europe, ___ Asia, ___ Latin America, ___ Other
+* For universal topics: Ensure at least 2-3 continents represented
 
 **Deselection List (Sources < 5.0):**
 * *[Source Name] - Score: X.X (Reason: Too old / Pure opinion)*
@@ -111,7 +134,9 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest).
 2. DO NOT omit the Source Reliability Matrix
 3. Order sources by Reliability Score (highest to lowest)
 4. Include clear justification for each source
-5. **All output must be in ENGLISH**`;
+5. **Verify geographic diversity:** For universal topics, ensure sources from at least 2-3 different continents
+6. Include Country/Region column in the table
+7. **All output must be in ENGLISH**`;
 
     // Gemini-specific optimization
     const geminiPrompt = basePrompt + `
@@ -322,8 +347,16 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest).
                 <li><strong>Perplexity:</strong> Respuestas rápidas con citations directas, mejor para síntesis concisas</li>
               </ul>
             </div>
+            <div className="mt-3 p-3 border-2 border-cool-blue bg-cool-blue/10">
+              <p className="text-xs font-bold text-dark mb-1">🌍 Búsqueda Geográfica Contextual:</p>
+              <ul className="text-xs text-dark/70 space-y-1">
+                <li><strong>Temas específicos de país</strong> (ej: SAT, AP) → Enfoque en ese país + comparaciones</li>
+                <li><strong>Temas universales</strong> (ej: didáctica, pedagogía) → Búsqueda global en 2-3+ continentes</li>
+                <li><strong>Diversidad incluida:</strong> USA, Europa, Asia, Latinoamérica, Oceanía</li>
+              </ul>
+            </div>
             <p className="text-xs text-dark/60 mt-3">
-              💡 Ambas versiones incluyen <strong>Recency automático</strong> (actualizado a {getCurrentMonthYear()}) y responden en <strong>español</strong>
+              💡 Incluye <strong>Recency automático</strong> (actualizado a {getCurrentMonthYear()}), <strong>diversidad geográfica</strong> y responde en <strong>inglés</strong>
             </p>
           </div>
         </BrutalCard>
