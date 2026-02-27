@@ -54,6 +54,8 @@ export default function DecisionLogsAdmin() {
   const [generatedJSON, setGeneratedJSON] = useState<any>(null);
   const [jsonText, setJsonText] = useState('');
   const [isEditingJson, setIsEditingJson] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
     loadLogs();
@@ -209,6 +211,87 @@ export default function DecisionLogsAdmin() {
 
     // Move to step 2: select investigations
     setWizardStep(2);
+  };
+
+  const generateWithAI = async () => {
+    setIsGeneratingAI(true);
+    setAiError(null);
+
+    try {
+      // Get selected investigations full data
+      const selectedInvestigations = investigations.filter(inv =>
+        selectedInvestigationIds.includes(inv.id || '')
+      );
+
+      // Call the API route
+      const response = await fetch('/api/integrate-decision', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          decisionText: rawDocText,
+          investigations: selectedInvestigations,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate integrated content');
+      }
+
+      const data = await response.json();
+
+      // Extract title from original text
+      const lines = rawDocText.split('\n').filter(line => line.trim());
+      const titleLine = lines.find(l => l.startsWith('#')) || lines[0];
+      const title = titleLine.replace(/^#+\s*/, '').trim();
+
+      // Detect taxonomy and status
+      let taxonomy: DecisionLog['taxonomy'] = 'Pedagogical Adjustment';
+      const lowerText = rawDocText.toLowerCase();
+      if (lowerText.includes('refut') || lowerText.includes('experiment')) {
+        taxonomy = 'Experimental Refutation';
+      } else if (lowerText.includes('new model') || lowerText.includes('didactic model') || lowerText.includes('nuevo modelo')) {
+        taxonomy = 'New Didactic Model';
+      }
+
+      let status: DecisionLog['status'] = 'Under Debate';
+      if (lowerText.includes('validated') || lowerText.includes('validado') || lowerText.includes('empirically')) {
+        status = 'Empirically Validated';
+      } else if (lowerText.includes('refuted') || lowerText.includes('refutado')) {
+        status = 'Refuted';
+      }
+
+      const authorMatch = rawDocText.match(/(?:author|autor|by|created by)[:\s]+([^\n]+)/i);
+      const author = authorMatch ? authorMatch[1].trim() : 'Sebastian Sarmiento';
+
+      const schoolMatch = rawDocText.match(/(?:school|escuela|hub|sede)[:\s]+([^\n]+)/i);
+      const schoolContext = schoolMatch ? schoolMatch[1].trim() : '';
+
+      // Generate final JSON with AI-integrated content
+      const generatedData = {
+        title: title || 'Untitled Decision',
+        taxonomy,
+        status,
+        rationale: data.integratedText,
+        evidence_url: '',
+        author,
+        schoolContext,
+        linkedInvestigations: selectedInvestigationIds,
+        aiGenerated: true,
+        aiTokens: data.usage,
+      };
+
+      setGeneratedJSON(generatedData);
+      setJsonText(JSON.stringify(generatedData, null, 2));
+      setWizardStep(3);
+    } catch (error: any) {
+      console.error('AI Generation error:', error);
+      setAiError(error.message || 'Failed to generate AI-integrated content');
+    } finally {
+      setIsGeneratingAI(false);
+    }
   };
 
   const generateIntegratedJSON = async () => {
@@ -764,15 +847,54 @@ Students showed 2.3x faster progression when mastering vertex form first...`}
                   </p>
                 </div>
               )}
+
+              {aiError && (
+                <div className="mb-4 p-3 bg-alert-orange/20 border-2 border-alert-orange">
+                  <p className="text-sm font-bold text-dark">⚠️ AI Error: {aiError}</p>
+                  <p className="text-xs text-dark/70 mt-1">
+                    Make sure ANTHROPIC_API_KEY is configured in your .env.local file
+                  </p>
+                </div>
+              )}
+
+              <div className="mb-4 p-4 bg-purple-500/10 border-4 border-purple-500">
+                <h4 className="font-bold text-dark mb-2">🤖 Choose Integration Method:</h4>
+                <div className="space-y-2 text-sm text-dark/80">
+                  <p>
+                    <strong>AI Integration (Recommended):</strong> Claude will create a natural, coherent narrative
+                    that weaves the decision and investigations together with smooth transitions.
+                  </p>
+                  <p>
+                    <strong>Simple Concatenation:</strong> Faster, appends investigation content at the end without AI processing.
+                  </p>
+                </div>
+              </div>
+
               <div className="flex gap-3">
                 <BrutalButton onClick={() => setWizardStep(1)} variant="secondary">
                   ← Back
                 </BrutalButton>
                 <BrutalButton
                   onClick={generateIntegratedJSON}
-                  variant="primary"
+                  variant="secondary"
+                  disabled={isGeneratingAI}
                 >
-                  Generate Integrated JSON →
+                  Simple Integration →
+                </BrutalButton>
+                <BrutalButton
+                  onClick={generateWithAI}
+                  variant="primary"
+                  disabled={isGeneratingAI}
+                  className="relative"
+                >
+                  {isGeneratingAI ? (
+                    <>
+                      <span className="inline-block animate-spin mr-2">⚙️</span>
+                      AI Generating...
+                    </>
+                  ) : (
+                    <>🤖 AI Integration →</>
+                  )}
                 </BrutalButton>
               </div>
             </>
@@ -782,11 +904,21 @@ Students showed 2.3x faster progression when mastering vertex form first...`}
           {wizardStep === 3 && generatedJSON && (
             <>
               <div className="mb-4">
-                <h3 className="font-bold text-dark mb-2">✨ Generated Decision Log (Integrated)</h3>
+                <h3 className="font-bold text-dark mb-2">
+                  ✨ Generated Decision Log {generatedJSON.aiGenerated && <span className="text-purple-600">(AI-Integrated)</span>}
+                </h3>
                 <p className="text-sm text-dark/70">
-                  Review the generated JSON. The rationale includes integrated content from {selectedInvestigationIds.length} investigation(s).
+                  Review the generated JSON. The rationale includes {generatedJSON.aiGenerated ? 'naturally integrated' : 'concatenated'} content from {selectedInvestigationIds.length} investigation(s).
                 </p>
               </div>
+
+              {generatedJSON.aiGenerated && generatedJSON.aiTokens && (
+                <div className="mb-4 p-3 bg-purple-500/10 border-2 border-purple-500">
+                  <p className="text-xs font-bold text-dark">
+                    🤖 AI Integration Complete | Input: {generatedJSON.aiTokens.inputTokens.toLocaleString()} tokens | Output: {generatedJSON.aiTokens.outputTokens.toLocaleString()} tokens
+                  </p>
+                </div>
+              )}
 
               <div className="mb-4 p-3 bg-cool-blue/10 border-2 border-cool-blue">
                 <div className="flex items-center justify-between">
