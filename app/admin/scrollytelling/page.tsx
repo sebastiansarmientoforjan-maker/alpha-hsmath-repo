@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BrutalCard, BrutalButton } from '@/components/ui';
+import { BrutalCard, BrutalButton, BrutalInput } from '@/components/ui';
 import { ScrollytellingReport } from '@/lib/uploadHtmlReport';
 import { getAllDecisionLogs, DecisionLog } from '@/lib/decisionLogs';
 import { getAllInvestigations, Investigation } from '@/lib/investigations';
