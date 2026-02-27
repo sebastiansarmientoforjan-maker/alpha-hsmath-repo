@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, Database, Home, Microscope, ArrowLeft, Users, Sparkles } from 'lucide-react';
+import { FileText, Database, Home, Microscope, ArrowLeft, Users, Sparkles, Archive } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -10,6 +10,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: Home },
     { href: '/admin/gem-generator', label: 'GEM Generator', icon: Sparkles },
+    { href: '/admin/prompt-repository', label: 'Prompt Repository', icon: Archive },
     { href: '/admin/research', label: 'Research Repository', icon: Microscope },
     { href: '/admin/decision-logs', label: 'Decision Logs', icon: Database },
     { href: '/admin/scrollytelling', label: 'Scrollytelling Reports', icon: FileText },

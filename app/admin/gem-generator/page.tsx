@@ -2,14 +2,20 @@
 
 import { useState } from 'react';
 import { BrutalCard, BrutalButton, BrutalInput } from '@/components/ui';
-import { Sparkles, Copy, Check, Download } from 'lucide-react';
+import { Sparkles, Copy, Check, Download, Save } from 'lucide-react';
+import { saveGemPrompt } from '@/lib/gemPrompts';
 
 export default function GemGenerator() {
   const [searchQuery, setSearchQuery] = useState('');
   const [generatedPrompt, setGeneratedPrompt] = useState('');
   const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const generatePrompt = () => {
+    // Reset saved state when generating new prompt
+    setSaved(false);
+
     const prompt = `Tu función es orquestar investigaciones educativas de alto nivel para un entorno High School, ejecutando una arquitectura de **"Lectura Activa"** (RLM) y una **Auditoría de Fuentes Ponderadas** antes de generar cualquier output.
 
 **Context:** Alpha School (Adaptive Pathways, Data-Driven, 2x Acceleration).
@@ -109,6 +115,21 @@ Genera la tabla de auditoría obligatoria ordenada por Score (Mayor a Menor).
     URL.revokeObjectURL(url);
   };
 
+  const savePrompt = async () => {
+    setSaving(true);
+    try {
+      await saveGemPrompt(searchQuery, generatedPrompt);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      alert('Prompt saved to repository!');
+    } catch (error) {
+      console.error('Error saving prompt:', error);
+      alert('Failed to save prompt. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div>
       <div className="mb-8">
@@ -157,6 +178,24 @@ Genera la tabla de auditoría obligatoria ordenada por Score (Mayor a Menor).
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-dark">Generated Prompt</h2>
             <div className="flex gap-2">
+              <BrutalButton
+                onClick={savePrompt}
+                variant="primary"
+                className="gap-2"
+                disabled={saving}
+              >
+                {saved ? (
+                  <>
+                    <Check size={16} />
+                    Saved!
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    {saving ? 'Saving...' : 'Save'}
+                  </>
+                )}
+              </BrutalButton>
               <BrutalButton
                 onClick={copyToClipboard}
                 variant="secondary"
