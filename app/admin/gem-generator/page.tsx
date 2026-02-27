@@ -23,6 +23,13 @@ export default function GemGenerator() {
   const [saving, setSaving] = useState(false);
   const [showRemixModal, setShowRemixModal] = useState(false);
   const [resultsText, setResultsText] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [processedData, setProcessedData] = useState<{
+    keyFindings: string;
+    methodology: string;
+    impactMetrics: string;
+    citations: Array<{ title: string; url: string; authors?: string }>;
+  } | null>(null);
   const [remixData, setRemixData] = useState({
     title: '',
     description: '',
@@ -251,7 +258,41 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
       author: user.displayName || user.email || '',
     });
     setResultsText('');
+    setProcessedData(null);
     setShowRemixModal(true);
+  };
+
+  const processWithClaude = async () => {
+    if (!resultsText.trim()) {
+      alert('Please paste research results first.');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const response = await fetch('/api/process-research-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resultsText,
+          searchQuery,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process results');
+      }
+
+      setProcessedData(data.processed);
+      alert('✅ Results processed successfully! Review the synthesized findings below.');
+    } catch (error) {
+      console.error('Error processing with Claude:', error);
+      alert('Failed to process results with Claude. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const extractCitationsFromResults = (text: string) => {
@@ -309,12 +350,24 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
     try {
       setSaving(true);
 
-      // Extract information from pasted results
-      const citations = extractCitationsFromResults(resultsText);
-      const keyFindings = extractKeyFindings(resultsText);
+      // Use processed data if available, otherwise fall back to extraction
+      let keyFindings, methodology, impactMetrics, citations, sourceCount;
 
-      // Count sources mentioned
-      const sourceCount = (resultsText.match(/\d+\./g) || []).length;
+      if (processedData) {
+        // Use Claude-processed data
+        keyFindings = processedData.keyFindings;
+        methodology = processedData.methodology;
+        impactMetrics = processedData.impactMetrics;
+        citations = processedData.citations;
+        sourceCount = processedData.citations.length;
+      } else {
+        // Fall back to basic extraction
+        citations = extractCitationsFromResults(resultsText);
+        keyFindings = extractKeyFindings(resultsText);
+        sourceCount = (resultsText.match(/\d+\./g) || []).length;
+        methodology = `Research conducted using ${activeEngine === 'gemini' ? 'Gemini Deep Research' : 'Perplexity AI'} with RLM architecture (Read, List, Mono-cite).\n\nOriginal Query: "${searchQuery}"\n\nFull results captured in key findings section.`;
+        impactMetrics = `${sourceCount} sources analyzed`;
+      }
 
       await createInvestigation({
         title: remixData.title,
@@ -323,8 +376,8 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
         mathematicalArea: remixData.mathematicalArea,
         status: 'Completed',
         keyFindings: keyFindings,
-        methodology: `Research conducted using ${activeEngine === 'gemini' ? 'Gemini Deep Research' : 'Perplexity AI'} with RLM architecture (Read, List, Mono-cite).\n\nOriginal Query: "${searchQuery}"\n\nFull results captured in key findings section.`,
-        impactMetrics: `${sourceCount} sources analyzed`,
+        methodology: methodology,
+        impactMetrics: impactMetrics,
         author: remixData.author,
         startDate: Timestamp.now(),
         completionDate: Timestamp.now(),
@@ -345,6 +398,7 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
         author: '',
       });
       setResultsText('');
+      setProcessedData(null);
     } catch (error) {
       console.error('Error creating investigation:', error);
       alert('Failed to create investigation. Please try again.');
@@ -580,10 +634,93 @@ The system will automatically extract:
 ✓ Paper count
 ✓ Methodology details"
                   />
-                  <p className="text-xs text-dark/60 mt-1">
-                    {resultsText.length} characters • {resultsText.split('\n').length} lines
-                  </p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs text-dark/60">
+                      {resultsText.length} characters • {resultsText.split('\n').length} lines
+                    </p>
+                    <BrutalButton
+                      onClick={processWithClaude}
+                      disabled={processing || !resultsText.trim()}
+                      variant="primary"
+                      className="gap-2 text-sm bg-alert-orange border-alert-orange"
+                    >
+                      <Sparkles size={14} />
+                      {processing ? 'Processing...' : 'Process with Claude'}
+                    </BrutalButton>
+                  </div>
                 </div>
+
+                {/* Processed Preview */}
+                {processedData && (
+                  <div className="border-4 border-alert-orange bg-alert-orange/10 p-6 space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-bold text-dark flex items-center gap-2">
+                        <Sparkles size={20} className="text-alert-orange" />
+                        Claude-Processed Results
+                      </h3>
+                      <p className="text-xs text-dark/60">✨ AI-synthesized narrative</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-dark mb-1">
+                        KEY FINDINGS (Editable)
+                      </label>
+                      <textarea
+                        value={processedData.keyFindings}
+                        onChange={(e) =>
+                          setProcessedData({ ...processedData, keyFindings: e.target.value })
+                        }
+                        rows={8}
+                        className="w-full border-2 border-dark px-3 py-2 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-alert-orange"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-dark mb-1">
+                        METHODOLOGY (Editable)
+                      </label>
+                      <textarea
+                        value={processedData.methodology}
+                        onChange={(e) =>
+                          setProcessedData({ ...processedData, methodology: e.target.value })
+                        }
+                        rows={4}
+                        className="w-full border-2 border-dark px-3 py-2 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-alert-orange"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-dark mb-1">
+                          IMPACT METRICS
+                        </label>
+                        <input
+                          type="text"
+                          value={processedData.impactMetrics}
+                          onChange={(e) =>
+                            setProcessedData({ ...processedData, impactMetrics: e.target.value })
+                          }
+                          className="w-full border-2 border-dark px-3 py-2 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-alert-orange"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-dark mb-1">
+                          CITATIONS EXTRACTED
+                        </label>
+                        <div className="border-2 border-dark px-3 py-2 text-sm text-dark bg-white">
+                          {processedData.citations.length} sources
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 border-2 border-cool-blue bg-cool-blue/10">
+                      <p className="text-xs font-bold text-dark mb-1">✅ Ready to Save</p>
+                      <p className="text-xs text-dark/70">
+                        Claude has synthesized the results into a narrative format. Review and edit above if needed, then fill in the metadata below and create the investigation.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="border-t-4 border-dark pt-4">
                   <p className="text-sm font-bold text-dark mb-3">Investigation Metadata:</p>
