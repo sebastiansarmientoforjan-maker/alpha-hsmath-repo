@@ -17,7 +17,7 @@ import {
   unlinkInvestigationFromDecision,
   getInvestigationsForDecision,
 } from '@/lib/decisionInvestigations';
-import { ScrollytellingReport } from '@/lib/uploadHtmlReport';
+import { ScrollytellingReport, uploadHtmlFromString } from '@/lib/uploadHtmlReport';
 import { DecisionLogDetail } from '@/components/ui/DecisionLogDetail';
 import { Edit, Trash2, Plus, Save, X, FileText, Link as LinkIcon, Microscope, Eye } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -439,6 +439,7 @@ export default function DecisionLogsAdmin() {
         selectedInvestigationIds.includes(inv.id || '')
       );
 
+      // Step 1: Generate HTML with Claude
       const response = await fetch('/api/generate-scrollytelling', {
         method: 'POST',
         headers: {
@@ -458,17 +459,25 @@ export default function DecisionLogsAdmin() {
       const data = await response.json();
       setScrollytellingHTML(data.html);
 
-      // Auto-download the HTML file
-      const blob = new Blob([data.html], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      const filename = `scrollytelling-${generatedJSON.title.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.html`;
-      link.download = filename;
-      link.click();
-      URL.revokeObjectURL(url);
+      // Step 2: Upload to Firebase Storage as Draft
+      const reportId = await uploadHtmlFromString(
+        data.html,
+        generatedJSON.title,
+        generatedJSON.tags || [],
+        'Draft', // Status
+        null, // investigationId (not linked to investigation)
+        null, // decisionLogId (will be linked after saving decision)
+        `Auto-generated ScrollyTelling report from Decision Log: ${generatedJSON.title}`,
+        'ScrollyTelling'
+      );
 
-      alert(`✅ ScrollyTelling HTML generated successfully!\n\nFile: ${filename}\nTokens used: Input ${data.usage.inputTokens.toLocaleString()} | Output ${data.usage.outputTokens.toLocaleString()}\n\nThe file has been downloaded automatically.`);
+      // Step 3: Store reportId in generatedJSON so it can be linked when saving
+      setGeneratedJSON({
+        ...generatedJSON,
+        generatedScrollytellingId: reportId,
+      });
+
+      alert(`✅ ScrollyTelling HTML generated and uploaded!\n\nStatus: Draft (pending approval)\nTokens: Input ${data.usage.inputTokens.toLocaleString()} | Output ${data.usage.outputTokens.toLocaleString()}\n\nThe report has been created and will be linked to this decision when you save.\n\nGo to Scrollytelling Reports to approve and publish.`);
     } catch (error: any) {
       console.error('ScrollyTelling generation error:', error);
       setAiError(error.message || 'Failed to generate scrollytelling');
@@ -497,8 +506,8 @@ export default function DecisionLogsAdmin() {
         }
       }
 
-      // Remove linkedInvestigations from data (not a DecisionLog field)
-      const { linkedInvestigations, ...logData } = dataToSave;
+      // Remove linkedInvestigations and generatedScrollytellingId from data (not DecisionLog fields)
+      const { linkedInvestigations, generatedScrollytellingId, aiGenerated, aiTokens, ...logData } = dataToSave;
 
       // Create decision log
       const logId = await createDecisionLog(logData);
@@ -510,9 +519,29 @@ export default function DecisionLogsAdmin() {
         }
       }
 
+      // Link scrollytelling report if generated
+      if (generatedScrollytellingId) {
+        // Update the scrollytelling report to link it to this decision
+        const { doc, updateDoc } = await import('firebase/firestore');
+        const { db } = await import('@/lib/firebase');
+        const reportRef = doc(db, 'scrollytelling_reports', generatedScrollytellingId);
+        await updateDoc(reportRef, {
+          decisionLogId: logId,
+        });
+      }
+
       await loadLogs();
       resetWizard();
-      alert(`✅ Decision log saved successfully!${selectedInvestigationIds.length > 0 ? ` Linked to ${selectedInvestigationIds.length} investigation(s).` : ''}`);
+
+      let successMessage = `✅ Decision log saved successfully!`;
+      if (selectedInvestigationIds.length > 0) {
+        successMessage += `\nLinked to ${selectedInvestigationIds.length} investigation(s).`;
+      }
+      if (generatedScrollytellingId) {
+        successMessage += `\n\n📊 ScrollyTelling report linked! Go to Scrollytelling Reports to approve and publish.`;
+      }
+
+      alert(successMessage);
     } catch (error) {
       console.error('Failed to save log:', error);
       alert('Failed to save. Make sure Firebase is configured correctly.');
@@ -529,6 +558,8 @@ export default function DecisionLogsAdmin() {
     setGeneratedJSON(null);
     setJsonText('');
     setIsEditingJson(false);
+    setScrollytellingHTML(null);
+    setShowRationalePreview(true);
   };
 
   const resetForm = () => {
@@ -1101,21 +1132,37 @@ Students showed 2.3x faster progression when mastering vertex form first...`}
                 <BrutalButton
                   onClick={generateScrollytelling}
                   variant="secondary"
-                  disabled={isGeneratingScrolly}
+                  disabled={isGeneratingScrolly || scrollytellingHTML !== null}
                   className="w-full"
                 >
                   {isGeneratingScrolly ? (
                     <>
                       <span className="inline-block animate-spin mr-2">⚙️</span>
-                      Generating ScrollyTelling HTML...
+                      Generating & Uploading ScrollyTelling...
                     </>
+                  ) : scrollytellingHTML ? (
+                    <>✅ ScrollyTelling Generated</>
                   ) : (
-                    <>📊 Generate ScrollyTelling HTML →</>
+                    <>📊 Generate ScrollyTelling HTML</>
                   )}
                 </BrutalButton>
                 {scrollytellingHTML && (
-                  <div className="mt-2 p-2 bg-green-500/20 border-2 border-green-500 text-xs">
-                    ✓ ScrollyTelling HTML generated! File downloaded automatically.
+                  <div className="mt-3 p-3 bg-green-500/20 border-2 border-green-500">
+                    <p className="text-sm font-bold text-dark">✅ ScrollyTelling Report Created!</p>
+                    <p className="text-xs text-dark/70 mt-1">
+                      Status: <strong>Draft</strong> (pending approval)
+                    </p>
+                    <p className="text-xs text-dark/70 mt-1">
+                      The report will be linked to this decision when you save.
+                    </p>
+                    <a
+                      href="/admin/scrollytelling"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block mt-2 px-3 py-1 border-2 border-dark bg-cool-blue hover:bg-white text-xs font-bold transition-colors"
+                    >
+                      Go to Scrollytelling Reports →
+                    </a>
                   </div>
                 )}
               </div>
