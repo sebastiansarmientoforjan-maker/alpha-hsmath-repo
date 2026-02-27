@@ -19,7 +19,9 @@ import {
 } from '@/lib/decisionInvestigations';
 import { ScrollytellingReport } from '@/lib/uploadHtmlReport';
 import { DecisionLogDetail } from '@/components/ui/DecisionLogDetail';
-import { Edit, Trash2, Plus, Save, X, FileText, Link as LinkIcon, Microscope } from 'lucide-react';
+import { Edit, Trash2, Plus, Save, X, FileText, Link as LinkIcon, Microscope, Eye } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function DecisionLogsAdmin() {
   const [logs, setLogs] = useState<DecisionLog[]>([]);
@@ -56,6 +58,9 @@ export default function DecisionLogsAdmin() {
   const [isEditingJson, setIsEditingJson] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [showRationalePreview, setShowRationalePreview] = useState(true); // Toggle between markdown preview and JSON
+  const [isGeneratingScrolly, setIsGeneratingScrolly] = useState(false);
+  const [scrollytellingHTML, setScrollytellingHTML] = useState<string | null>(null);
 
   useEffect(() => {
     loadLogs();
@@ -417,6 +422,58 @@ export default function DecisionLogsAdmin() {
     } catch (error) {
       console.error('Parse error:', error);
       alert('Error generating integrated JSON. Please check the format and try again.');
+    }
+  };
+
+  const generateScrollytelling = async () => {
+    if (!generatedJSON) {
+      alert('No decision log to generate scrollytelling from');
+      return;
+    }
+
+    setIsGeneratingScrolly(true);
+    setAiError(null);
+
+    try {
+      const selectedInvestigations = investigations.filter(inv =>
+        selectedInvestigationIds.includes(inv.id || '')
+      );
+
+      const response = await fetch('/api/generate-scrollytelling', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          decisionLog: generatedJSON,
+          investigations: selectedInvestigations,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate scrollytelling');
+      }
+
+      const data = await response.json();
+      setScrollytellingHTML(data.html);
+
+      // Auto-download the HTML file
+      const blob = new Blob([data.html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const filename = `scrollytelling-${generatedJSON.title.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.html`;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      alert(`✅ ScrollyTelling HTML generated successfully!\n\nFile: ${filename}\nTokens used: Input ${data.usage.inputTokens.toLocaleString()} | Output ${data.usage.outputTokens.toLocaleString()}\n\nThe file has been downloaded automatically.`);
+    } catch (error: any) {
+      console.error('ScrollyTelling generation error:', error);
+      setAiError(error.message || 'Failed to generate scrollytelling');
+    } finally {
+      setIsGeneratingScrolly(false);
     }
   };
 
@@ -939,19 +996,129 @@ Students showed 2.3x faster progression when mastering vertex form first...`}
                 </p>
               </div>
 
-              <textarea
-                value={jsonText}
-                onChange={(e) => setJsonText(e.target.value)}
-                readOnly={!isEditingJson}
-                rows={20}
-                className={`w-full border-4 border-dark bg-white px-4 py-3 text-dark font-mono text-xs focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] resize-y mb-4 ${!isEditingJson ? 'bg-gray-50' : ''}`}
-              />
-
-              {isEditingJson && (
-                <div className="mb-4 p-2 bg-alert-orange/20 border-2 border-alert-orange text-xs">
-                  ⚠️ Editing JSON manually. Make sure syntax is valid before saving.
+              {/* Tabs: Preview / JSON / ScrollyTelling */}
+              <div className="mb-4">
+                <div className="flex gap-2 border-b-4 border-dark">
+                  <button
+                    onClick={() => setShowRationalePreview(true)}
+                    className={`px-4 py-2 font-bold border-2 border-dark transition-colors ${
+                      showRationalePreview
+                        ? 'bg-cool-blue text-dark'
+                        : 'bg-white text-dark hover:bg-bg-light'
+                    }`}
+                  >
+                    <Eye size={16} className="inline mr-2" />
+                    Preview
+                  </button>
+                  <button
+                    onClick={() => setShowRationalePreview(false)}
+                    className={`px-4 py-2 font-bold border-2 border-dark transition-colors ${
+                      !showRationalePreview
+                        ? 'bg-cool-blue text-dark'
+                        : 'bg-white text-dark hover:bg-bg-light'
+                    }`}
+                  >
+                    <FileText size={16} className="inline mr-2" />
+                    JSON
+                  </button>
                 </div>
-              )}
+
+                {/* Preview Tab - Rendered Markdown */}
+                {showRationalePreview && (
+                  <div className="border-4 border-dark p-6 bg-white max-h-[600px] overflow-y-auto">
+                    <div className="prose prose-sm max-w-none">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h2: ({node, ...props}) => <h2 className="text-2xl font-bold text-dark mt-6 mb-3" {...props} />,
+                          h3: ({node, ...props}) => <h3 className="text-xl font-bold text-dark mt-4 mb-2" {...props} />,
+                          p: ({node, ...props}) => <p className="text-dark mb-3 leading-relaxed" {...props} />,
+                          ul: ({node, ...props}) => <ul className="list-disc ml-6 mb-3 text-dark" {...props} />,
+                          ol: ({node, ...props}) => <ol className="list-decimal ml-6 mb-3 text-dark" {...props} />,
+                          li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                          strong: ({node, ...props}) => <strong className="font-bold text-dark" {...props} />,
+                          em: ({node, ...props}) => <em className="italic text-dark" {...props} />,
+                          code: ({node, ...props}) => <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono" {...props} />,
+                          hr: ({node, ...props}) => <hr className="my-6 border-t-2 border-dark" {...props} />,
+                          table: ({node, ...props}) => (
+                            <div className="overflow-x-auto mb-4">
+                              <table className="w-full border-4 border-dark" {...props} />
+                            </div>
+                          ),
+                          thead: ({node, ...props}) => <thead className="bg-cool-blue" {...props} />,
+                          th: ({node, ...props}) => <th className="border-2 border-dark px-4 py-2 text-left font-bold" {...props} />,
+                          td: ({node, ...props}) => <td className="border-2 border-dark px-4 py-2" {...props} />,
+                        }}
+                      >
+                        {generatedJSON.rationale}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+
+                {/* JSON Tab - Editable */}
+                {!showRationalePreview && (
+                  <>
+                    <div className="flex items-center justify-end p-2 bg-bg-light border-2 border-dark border-t-0">
+                      {!isEditingJson ? (
+                        <button
+                          onClick={() => setIsEditingJson(true)}
+                          className="px-3 py-1 border-2 border-dark bg-white hover:bg-cool-blue text-xs font-bold"
+                        >
+                          Edit JSON
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setIsEditingJson(false)}
+                          className="px-3 py-1 border-2 border-dark bg-green-500 hover:bg-green-600 text-white text-xs font-bold"
+                        >
+                          Done Editing
+                        </button>
+                      )}
+                    </div>
+                    <textarea
+                      value={jsonText}
+                      onChange={(e) => setJsonText(e.target.value)}
+                      readOnly={!isEditingJson}
+                      rows={20}
+                      className={`w-full border-4 border-dark border-t-0 bg-white px-4 py-3 text-dark font-mono text-xs focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] resize-y ${!isEditingJson ? 'bg-gray-50' : ''}`}
+                    />
+                    {isEditingJson && (
+                      <div className="mt-2 p-2 bg-alert-orange/20 border-2 border-alert-orange text-xs">
+                        ⚠️ Editing JSON manually. Make sure syntax is valid before saving.
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="mb-4 p-4 bg-purple-500/10 border-4 border-purple-500">
+                <h4 className="font-bold text-dark mb-2">📊 Generate ScrollyTelling Report</h4>
+                <p className="text-sm text-dark/70 mb-3">
+                  Transform this decision into an executive-ready ScrollyTelling HTML report following MBB standards
+                  (BLUF, SCQA, Minto Pyramid, Cognitive Load Optimization).
+                </p>
+                <BrutalButton
+                  onClick={generateScrollytelling}
+                  variant="secondary"
+                  disabled={isGeneratingScrolly}
+                  className="w-full"
+                >
+                  {isGeneratingScrolly ? (
+                    <>
+                      <span className="inline-block animate-spin mr-2">⚙️</span>
+                      Generating ScrollyTelling HTML...
+                    </>
+                  ) : (
+                    <>📊 Generate ScrollyTelling HTML →</>
+                  )}
+                </BrutalButton>
+                {scrollytellingHTML && (
+                  <div className="mt-2 p-2 bg-green-500/20 border-2 border-green-500 text-xs">
+                    ✓ ScrollyTelling HTML generated! File downloaded automatically.
+                  </div>
+                )}
+              </div>
 
               <div className="flex gap-3">
                 <BrutalButton onClick={() => setWizardStep(2)} variant="secondary">
