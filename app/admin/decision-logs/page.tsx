@@ -46,10 +46,14 @@ export default function DecisionLogsAdmin() {
     schoolContext: '',
   });
 
-  // Parser state
+  // Parser state - Multi-step wizard
   const [showTextParser, setShowTextParser] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1); // 1: paste, 2: select investigations, 3: preview JSON
   const [rawDocText, setRawDocText] = useState('');
   const [selectedInvestigationIds, setSelectedInvestigationIds] = useState<string[]>([]);
+  const [generatedJSON, setGeneratedJSON] = useState<any>(null);
+  const [jsonText, setJsonText] = useState('');
+  const [isEditingJson, setIsEditingJson] = useState(false);
 
   useEffect(() => {
     loadLogs();
@@ -188,6 +192,11 @@ export default function DecisionLogsAdmin() {
       return;
     }
 
+    // Move to step 2: select investigations
+    setWizardStep(2);
+  };
+
+  const generateIntegratedJSON = async () => {
     try {
       const lines = rawDocText.split('\n').filter(line => line.trim());
 
@@ -202,7 +211,7 @@ export default function DecisionLogsAdmin() {
       const rationale = extractSection(rawDocText, ['rationale', 'justification', 'justificación', 'why', 'por qué']);
       const evidence = extractSection(rawDocText, ['evidence', 'evidencia', 'data', 'results', 'findings']);
 
-      // Build rationale from available content
+      // Build base rationale from available content
       let fullRationale = '';
       if (purpose) fullRationale += `## Purpose\n${purpose}\n\n`;
       if (context) fullRationale += `## Context\n${context}\n\n`;
@@ -213,6 +222,39 @@ export default function DecisionLogsAdmin() {
       // If no structured rationale, use the full text
       if (!fullRationale.trim()) {
         fullRationale = rawDocText;
+      }
+
+      // INTEGRATE INVESTIGATIONS
+      if (selectedInvestigationIds.length > 0) {
+        const selectedInvestigations = investigations.filter(inv =>
+          selectedInvestigationIds.includes(inv.id || '')
+        );
+
+        fullRationale += `\n\n---\n\n## Related Research\n\n`;
+        fullRationale += `This decision is informed by ${selectedInvestigations.length} research investigation(s):\n\n`;
+
+        selectedInvestigations.forEach((inv, idx) => {
+          fullRationale += `### ${idx + 1}. ${inv.title}\n\n`;
+          fullRationale += `**Type:** ${inv.researchType} | **Area:** ${inv.mathematicalArea} | **Status:** ${inv.status}\n\n`;
+
+          if (inv.description) {
+            fullRationale += `**Summary:** ${inv.description}\n\n`;
+          }
+
+          if (inv.keyFindings) {
+            fullRationale += `**Key Findings:**\n${inv.keyFindings}\n\n`;
+          }
+
+          if (inv.impactMetrics) {
+            fullRationale += `**Impact:** ${inv.impactMetrics}\n\n`;
+          }
+
+          if (inv.methodology) {
+            fullRationale += `**Methodology:** ${inv.methodology}\n\n`;
+          }
+
+          fullRationale += `---\n\n`;
+        });
       }
 
       // Detect taxonomy based on keywords
@@ -240,8 +282,8 @@ export default function DecisionLogsAdmin() {
       const schoolMatch = rawDocText.match(/(?:school|escuela|hub|sede)[:\s]+([^\n]+)/i);
       const schoolContext = schoolMatch ? schoolMatch[1].trim() : '';
 
-      // Pre-fill form
-      setFormData({
+      // Generate final JSON
+      const generatedData = {
         title: title || 'Untitled Decision',
         taxonomy,
         status,
@@ -249,16 +291,70 @@ export default function DecisionLogsAdmin() {
         evidence_url: '',
         author,
         schoolContext,
-      });
+        linkedInvestigations: selectedInvestigationIds,
+      };
 
-      setShowTextParser(false);
-      setShowForm(true);
-      setEditingId(null);
-      alert('✅ Documentation parsed! Review the form and select related investigations before saving.');
+      setGeneratedJSON(generatedData);
+      setJsonText(JSON.stringify(generatedData, null, 2));
+      setWizardStep(3);
     } catch (error) {
       console.error('Parse error:', error);
-      alert('Error parsing documentation. Please check the format and try again.');
+      alert('Error generating integrated JSON. Please check the format and try again.');
     }
+  };
+
+  const saveFromGeneratedJSON = async () => {
+    if (!generatedJSON) {
+      alert('No JSON to save');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Update JSON if user edited it
+      let dataToSave = generatedJSON;
+      if (isEditingJson) {
+        try {
+          dataToSave = JSON.parse(jsonText);
+        } catch (e) {
+          alert('Invalid JSON. Please fix syntax errors.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Remove linkedInvestigations from data (not a DecisionLog field)
+      const { linkedInvestigations, ...logData } = dataToSave;
+
+      // Create decision log
+      const logId = await createDecisionLog(logData);
+
+      // Link investigations if any
+      if (selectedInvestigationIds.length > 0) {
+        for (const invId of selectedInvestigationIds) {
+          await linkInvestigationToDecision(logId, invId);
+        }
+      }
+
+      await loadLogs();
+      resetWizard();
+      alert(`✅ Decision log saved successfully!${selectedInvestigationIds.length > 0 ? ` Linked to ${selectedInvestigationIds.length} investigation(s).` : ''}`);
+    } catch (error) {
+      console.error('Failed to save log:', error);
+      alert('Failed to save. Make sure Firebase is configured correctly.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetWizard = () => {
+    setShowTextParser(false);
+    setWizardStep(1);
+    setRawDocText('');
+    setSelectedInvestigationIds([]);
+    setGeneratedJSON(null);
+    setJsonText('');
+    setIsEditingJson(false);
   };
 
   const resetForm = () => {
@@ -468,14 +564,19 @@ export default function DecisionLogsAdmin() {
         <div className="flex gap-3">
           <BrutalButton
             onClick={() => {
-              setShowTextParser(!showTextParser);
-              setShowForm(false);
+              if (showTextParser) {
+                resetWizard();
+              } else {
+                setShowTextParser(true);
+                setWizardStep(1);
+                setShowForm(false);
+              }
             }}
             variant="secondary"
             className="flex items-center gap-2"
           >
             <FileText size={20} />
-            {showTextParser ? 'Close Parser' : 'Generate from Documentation'}
+            {showTextParser ? 'Close Wizard' : 'Generate from Documentation'}
           </BrutalButton>
           <BrutalButton
             onClick={() => {
@@ -491,65 +592,216 @@ export default function DecisionLogsAdmin() {
         </div>
       </div>
 
-      {/* Text Parser */}
+      {/* Multi-Step Wizard */}
       {showTextParser && (
         <BrutalCard className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-bold text-dark">Generate Decision Log from Documentation</h2>
+              <h2 className="text-xl font-bold text-dark">Generate Decision Log - Smart Integration</h2>
               <p className="text-sm text-dark/70 mt-1">
-                Paste your documentation below and we'll automatically extract the decision log structure
+                Step {wizardStep} of 3: {
+                  wizardStep === 1 ? 'Paste Documentation' :
+                  wizardStep === 2 ? 'Link Investigations' :
+                  'Review & Save'
+                }
               </p>
             </div>
             <button
-              onClick={() => setShowTextParser(false)}
+              onClick={resetWizard}
               className="p-2 border-2 border-dark bg-white hover:bg-alert-orange transition-colors"
             >
               <X size={20} />
             </button>
           </div>
 
-          <textarea
-            value={rawDocText}
-            onChange={(e) => setRawDocText(e.target.value)}
-            placeholder={`Paste your documentation here. Example:
+          {/* Progress Bar */}
+          <div className="flex gap-2 mb-6">
+            <div className={`flex-1 h-2 border-2 border-dark ${wizardStep >= 1 ? 'bg-cool-blue' : 'bg-white'}`} />
+            <div className={`flex-1 h-2 border-2 border-dark ${wizardStep >= 2 ? 'bg-cool-blue' : 'bg-white'}`} />
+            <div className={`flex-1 h-2 border-2 border-dark ${wizardStep >= 3 ? 'bg-cool-blue' : 'bg-white'}`} />
+          </div>
+
+          {/* STEP 1: Paste Documentation */}
+          {wizardStep === 1 && (
+            <>
+              <div className="mb-4">
+                <h3 className="font-bold text-dark mb-2">📄 Paste Your Documentation</h3>
+                <p className="text-sm text-dark/70">
+                  Include purpose, context, decision, rationale, and evidence
+                </p>
+              </div>
+              <textarea
+                value={rawDocText}
+                onChange={(e) => setRawDocText(e.target.value)}
+                placeholder={`Paste your documentation here. Example:
 
 # Alpha Desmos SAT Training Platform
 
 ## Purpose
-Enable students to master progressive training units through an interactive, split-screen interface with an embedded calculator.
+Enable students to master progressive training units through an interactive, split-screen interface.
 
 ## Context
-Currently students lack practical training for Digital SAT Math section Desmos calculator skills...
+Students lack practical training for Digital SAT Math Desmos calculator skills...
 
 ## Decision
-Created a comprehensive training platform with Unit A (Regression Analysis) and Unit B (Visual Problem Solving)...
+Created a comprehensive training platform with Unit A (Regression) and Unit B (Visual Problem Solving)...
 
 ## Rationale
-Speed is a critical component of mastery. The platform enforces a "Platinum" tier requiring correct answers in <6 minutes...
+Speed is critical. Platform enforces "Platinum" tier requiring <6 minutes...
 
 ## Evidence
-Students using the platform showed 2.3x faster progression when mastering vertex form before standard form...`}
-            rows={16}
-            className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-mono text-sm focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] resize-y mb-4"
-          />
+Students showed 2.3x faster progression when mastering vertex form first...`}
+                rows={14}
+                className="w-full border-4 border-dark bg-white px-4 py-3 text-dark font-mono text-sm focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] resize-y mb-4"
+              />
+              <div className="flex gap-3">
+                <BrutalButton
+                  onClick={parseDocumentationText}
+                  variant="primary"
+                  disabled={!rawDocText.trim()}
+                >
+                  Next: Link Investigations →
+                </BrutalButton>
+                <BrutalButton onClick={() => setRawDocText('')} variant="secondary">
+                  Clear
+                </BrutalButton>
+              </div>
+            </>
+          )}
 
-          <div className="flex gap-3">
-            <BrutalButton
-              onClick={parseDocumentationText}
-              variant="primary"
-              disabled={!rawDocText.trim()}
-            >
-              <FileText size={20} className="inline mr-2" />
-              Parse & Generate Decision Log
-            </BrutalButton>
-            <BrutalButton
-              onClick={() => setRawDocText('')}
-              variant="secondary"
-            >
-              Clear
-            </BrutalButton>
-          </div>
+          {/* STEP 2: Select Investigations */}
+          {wizardStep === 2 && (
+            <>
+              <div className="mb-4">
+                <h3 className="font-bold text-dark mb-2">🔬 Link Related Investigations (Optional)</h3>
+                <p className="text-sm text-dark/70">
+                  Select investigations that informed this decision. Their content will be integrated into the final document.
+                </p>
+              </div>
+              {investigations.length === 0 ? (
+                <div className="text-center py-8 text-dark/60">
+                  No investigations available. You can skip this step.
+                </div>
+              ) : (
+                <div className="max-h-96 overflow-y-auto border-4 border-dark bg-white p-4 mb-4">
+                  {investigations.map((inv) => (
+                    <label
+                      key={inv.id}
+                      className="flex items-start gap-3 p-3 mb-2 border-2 border-dark bg-bg-light hover:bg-cool-blue/20 transition-colors cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedInvestigationIds.includes(inv.id || '')}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedInvestigationIds([...selectedInvestigationIds, inv.id || '']);
+                          } else {
+                            setSelectedInvestigationIds(selectedInvestigationIds.filter(id => id !== inv.id));
+                          }
+                        }}
+                        className="mt-1 w-5 h-5 border-2 border-dark"
+                      />
+                      <div className="flex-1">
+                        <p className="font-bold text-dark">{inv.title}</p>
+                        <p className="text-sm text-dark/70 mt-1 line-clamp-2">{inv.description}</p>
+                        <div className="flex gap-2 mt-2">
+                          <span className="px-2 py-1 border-2 border-dark bg-white text-xs font-bold">
+                            {inv.researchType}
+                          </span>
+                          <span className="px-2 py-1 border-2 border-dark bg-white text-xs font-bold">
+                            {inv.mathematicalArea}
+                          </span>
+                          <span className="px-2 py-1 border-2 border-dark bg-white text-xs font-bold">
+                            {inv.status}
+                          </span>
+                        </div>
+                        {inv.impactMetrics && (
+                          <p className="text-xs text-dark/60 mt-1">📈 {inv.impactMetrics}</p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {selectedInvestigationIds.length > 0 && (
+                <div className="mb-4 p-3 bg-cool-blue/20 border-2 border-cool-blue">
+                  <p className="text-sm font-bold text-dark">
+                    ✓ {selectedInvestigationIds.length} investigation(s) selected - their content will be integrated into the decision log
+                  </p>
+                </div>
+              )}
+              <div className="flex gap-3">
+                <BrutalButton onClick={() => setWizardStep(1)} variant="secondary">
+                  ← Back
+                </BrutalButton>
+                <BrutalButton
+                  onClick={generateIntegratedJSON}
+                  variant="primary"
+                >
+                  Generate Integrated JSON →
+                </BrutalButton>
+              </div>
+            </>
+          )}
+
+          {/* STEP 3: Preview & Save */}
+          {wizardStep === 3 && generatedJSON && (
+            <>
+              <div className="mb-4">
+                <h3 className="font-bold text-dark mb-2">✨ Generated Decision Log (Integrated)</h3>
+                <p className="text-sm text-dark/70">
+                  Review the generated JSON. The rationale includes integrated content from {selectedInvestigationIds.length} investigation(s).
+                </p>
+              </div>
+
+              <div className="mb-4 p-3 bg-cool-blue/10 border-2 border-cool-blue">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-bold text-dark">
+                    📋 Title: {generatedJSON.title}
+                  </p>
+                  {!isEditingJson && (
+                    <button
+                      onClick={() => setIsEditingJson(true)}
+                      className="px-3 py-1 border-2 border-dark bg-white hover:bg-cool-blue text-xs font-bold"
+                    >
+                      Edit JSON
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-dark/70 mt-1">
+                  Type: {generatedJSON.taxonomy} | Status: {generatedJSON.status}
+                </p>
+              </div>
+
+              <textarea
+                value={jsonText}
+                onChange={(e) => setJsonText(e.target.value)}
+                readOnly={!isEditingJson}
+                rows={20}
+                className={`w-full border-4 border-dark bg-white px-4 py-3 text-dark font-mono text-xs focus:outline-none focus:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] resize-y mb-4 ${!isEditingJson ? 'bg-gray-50' : ''}`}
+              />
+
+              {isEditingJson && (
+                <div className="mb-4 p-2 bg-alert-orange/20 border-2 border-alert-orange text-xs">
+                  ⚠️ Editing JSON manually. Make sure syntax is valid before saving.
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <BrutalButton onClick={() => setWizardStep(2)} variant="secondary">
+                  ← Back
+                </BrutalButton>
+                <BrutalButton
+                  onClick={saveFromGeneratedJSON}
+                  variant="primary"
+                  disabled={loading}
+                >
+                  <Save size={20} className="inline mr-2" />
+                  {loading ? 'Saving...' : 'Save Decision Log'}
+                </BrutalButton>
+              </div>
+            </>
+          )}
         </BrutalCard>
       )}
 
