@@ -178,36 +178,6 @@ export default function DecisionLogsAdmin() {
     }
   };
 
-  // Parser functions - improved to handle long content
-  const extractSection = (text: string, keywords: string[]): string => {
-    const keywordPattern = keywords.join('|');
-
-    // Try to find section with header
-    const headerRegex = new RegExp(
-      `(?:^|\\n)\\s*#{1,6}\\s*(${keywordPattern})\\s*\\n([\\s\\S]*?)(?=\\n#{1,6}\\s|$)`,
-      'im'
-    );
-    const headerMatch = text.match(headerRegex);
-    if (headerMatch && headerMatch[2]) {
-      return headerMatch[2].trim();
-    }
-
-    // Try without header requirement - just keyword with colon
-    const colonRegex = new RegExp(
-      `(?:^|\\n)\\s*(?:${keywordPattern})[:\\s]*\\n([\\s\\S]*?)(?=\\n(?:Purpose|Context|Decision|Rationale|Evidence|Methodology|Key Findings|Summary|Who|Focus|Domain|Technical|Insights|SpikyPOVs)[:\\s]|\\n#{1,6}\\s|$)`,
-      'im'
-    );
-    const colonMatch = text.match(colonRegex);
-    if (colonMatch && colonMatch[1]) {
-      return colonMatch[1].trim();
-    }
-
-    // Last resort: inline format
-    const inlineRegex = new RegExp(`(?:${keywordPattern})[:\\s]+([^\\n]+)`, 'im');
-    const inlineMatch = text.match(inlineRegex);
-    return inlineMatch ? inlineMatch[1].trim() : '';
-  };
-
   const parseDocumentationText = () => {
     if (!rawDocText.trim()) {
       alert('Please paste documentation text first');
@@ -299,131 +269,6 @@ export default function DecisionLogsAdmin() {
     }
   };
 
-  const generateIntegratedJSON = async () => {
-    try {
-      const lines = rawDocText.split('\n').filter(line => line.trim());
-
-      // Extract title (first line or line with #)
-      const titleLine = lines.find(l => l.startsWith('#')) || lines[0];
-      const title = titleLine.replace(/^#+\s*/, '').trim();
-
-      // Remove title from rawDocText to avoid duplication
-      const contentWithoutTitle = rawDocText.replace(titleLine, '').trim();
-
-      // For complex/long documents, use full content without parsing
-      const isComplexDocument = rawDocText.length > 2000 ||
-                                rawDocText.includes('Knowledge Tree') ||
-                                rawDocText.includes('Strategic Meta-Analysis') ||
-                                rawDocText.includes('SpikyPOVs') ||
-                                rawDocText.includes('Experts');
-
-      let fullRationale = '';
-
-      if (isComplexDocument) {
-        // Use full document as-is (without title since it's in the title field)
-        fullRationale = contentWithoutTitle;
-      } else {
-        // Try to parse structured sections for simpler documents
-        const purpose = extractSection(rawDocText, ['purpose', 'propósito', 'objective', 'objetivo']);
-        const context = extractSection(rawDocText, ['context', 'contexto', 'background', 'antecedentes']);
-        const decision = extractSection(rawDocText, ['decision', 'decisión', 'approach', 'solution']);
-        const rationale = extractSection(rawDocText, ['rationale', 'justification', 'justificación', 'why', 'por qué']);
-        const evidence = extractSection(rawDocText, ['evidence', 'evidencia', 'data', 'results', 'findings']);
-
-        // Check if we have structured content
-        const hasStructuredContent = purpose || context || decision || rationale || evidence;
-
-        if (hasStructuredContent) {
-          // Use structured format
-          if (purpose) fullRationale += `## Purpose\n${purpose}\n\n`;
-          if (context) fullRationale += `## Context\n${context}\n\n`;
-          if (decision) fullRationale += `## Decision\n${decision}\n\n`;
-          if (rationale) fullRationale += `## Rationale\n${rationale}\n\n`;
-          if (evidence) fullRationale += `## Evidence\n${evidence}\n\n`;
-        } else {
-          // No structured content found - use full document
-          fullRationale = contentWithoutTitle;
-        }
-      }
-
-      // INTEGRATE INVESTIGATIONS
-      if (selectedInvestigationIds.length > 0) {
-        const selectedInvestigations = investigations.filter(inv =>
-          selectedInvestigationIds.includes(inv.id || '')
-        );
-
-        fullRationale += `\n\n---\n\n## Related Research\n\n`;
-        fullRationale += `This decision is informed by ${selectedInvestigations.length} research investigation(s):\n\n`;
-
-        selectedInvestigations.forEach((inv, idx) => {
-          fullRationale += `### ${idx + 1}. ${inv.title}\n\n`;
-          fullRationale += `**Type:** ${inv.researchType} | **Area:** ${inv.mathematicalArea} | **Status:** ${inv.status}\n\n`;
-
-          if (inv.description) {
-            fullRationale += `**Summary:** ${inv.description}\n\n`;
-          }
-
-          if (inv.keyFindings) {
-            fullRationale += `**Key Findings:**\n${inv.keyFindings}\n\n`;
-          }
-
-          if (inv.impactMetrics) {
-            fullRationale += `**Impact:** ${inv.impactMetrics}\n\n`;
-          }
-
-          if (inv.methodology) {
-            fullRationale += `**Methodology:** ${inv.methodology}\n\n`;
-          }
-
-          fullRationale += `---\n\n`;
-        });
-      }
-
-      // Detect taxonomy based on keywords
-      let taxonomy: DecisionLog['taxonomy'] = 'Pedagogical Adjustment';
-      const lowerText = rawDocText.toLowerCase();
-      if (lowerText.includes('refut') || lowerText.includes('experiment')) {
-        taxonomy = 'Experimental Refutation';
-      } else if (lowerText.includes('new model') || lowerText.includes('didactic model') || lowerText.includes('nuevo modelo')) {
-        taxonomy = 'New Didactic Model';
-      }
-
-      // Detect status
-      let status: DecisionLog['status'] = 'Under Debate';
-      if (lowerText.includes('validated') || lowerText.includes('validado') || lowerText.includes('empirically')) {
-        status = 'Empirically Validated';
-      } else if (lowerText.includes('refuted') || lowerText.includes('refutado')) {
-        status = 'Refuted';
-      }
-
-      // Extract author if present
-      const authorMatch = rawDocText.match(/(?:author|autor|by|created by)[:\s]+([^\n]+)/i);
-      const author = authorMatch ? authorMatch[1].trim() : 'Sebastian Sarmiento';
-
-      // Extract school context if present
-      const schoolMatch = rawDocText.match(/(?:school|escuela|hub|sede)[:\s]+([^\n]+)/i);
-      const schoolContext = schoolMatch ? schoolMatch[1].trim() : '';
-
-      // Generate final JSON
-      const generatedData = {
-        title: title || 'Untitled Decision',
-        taxonomy,
-        status,
-        rationale: fullRationale.trim(),
-        evidence_url: '',
-        author,
-        schoolContext,
-        linkedInvestigations: selectedInvestigationIds,
-      };
-
-      setGeneratedJSON(generatedData);
-      setJsonText(JSON.stringify(generatedData, null, 2));
-      setWizardStep(3);
-    } catch (error) {
-      console.error('Parse error:', error);
-      alert('Error generating integrated JSON. Please check the format and try again.');
-    }
-  };
 
   const generateScrollytelling = async () => {
     if (!generatedJSON) {
@@ -477,12 +322,17 @@ export default function DecisionLogsAdmin() {
         generatedScrollytellingId: reportId,
       });
 
+      // Reset state BEFORE showing alert to avoid blocking
+      setIsGeneratingScrolly(false);
+
+      // Now show success message
       alert(`✅ ScrollyTelling HTML generated and uploaded!\n\nStatus: Draft (pending approval)\nTokens: Input ${data.usage.inputTokens.toLocaleString()} | Output ${data.usage.outputTokens.toLocaleString()}\n\nThe report has been created and will be linked to this decision when you save.\n\nGo to Scrollytelling Reports to approve and publish.`);
     } catch (error: any) {
-      console.error('ScrollyTelling generation error:', error);
+      console.error('❌ ScrollyTelling generation error:', error);
+      console.error('Error stack:', error.stack);
       setAiError(error.message || 'Failed to generate scrollytelling');
-    } finally {
-      setIsGeneratingScrolly(false);
+      setIsGeneratingScrolly(false); // Reset state on error too
+      alert(`❌ Error: ${error.message}`);
     }
   };
 
@@ -631,6 +481,76 @@ export default function DecisionLogsAdmin() {
       await loadLogs();
     } catch (error) {
       console.error('Failed to delete log:', error);
+    }
+  };
+
+  const generateScrollytellingForEdit = async () => {
+    if (!editingId) {
+      alert('No decision log to generate scrollytelling from');
+      return;
+    }
+
+    setIsGeneratingScrolly(true);
+    setAiError(null);
+
+    try {
+      // Get linked investigations for this decision
+      const linkedInvs = await getInvestigationsForDecision(editingId);
+
+      // Build decision log object from form data
+      const currentDecisionLog = {
+        title: formData.title,
+        taxonomy: formData.taxonomy,
+        status: formData.status,
+        rationale: formData.rationale,
+        author: formData.author,
+        evidence_url: formData.evidence_url,
+        schoolContext: formData.schoolContext,
+      };
+
+      // Step 1: Generate HTML with Claude
+      const response = await fetch('/api/generate-scrollytelling', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          decisionLog: currentDecisionLog,
+          investigations: linkedInvs,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate scrollytelling');
+      }
+
+      const data = await response.json();
+      console.log('✅ HTML generated, uploading to Firebase...');
+
+      // Step 2: Upload HTML to Firebase as Draft
+      const reportId = await uploadHtmlFromString(
+        data.html,
+        formData.title,
+        [], // tags
+        'Draft',
+        null, // investigationId
+        editingId, // decisionLogId - link to the current decision being edited
+        `Auto-generated ScrollyTelling report from Decision Log`,
+        'ScrollyTelling'
+      );
+
+      console.log('✅ Report uploaded, ID:', reportId);
+      alert(`✨ ScrollyTelling report generated and saved as Draft!\nReport ID: ${reportId}\n\nInput: ${data.usage.inputTokens} tokens | Output: ${data.usage.outputTokens} tokens`);
+
+      // Reload logs to show updated report count
+      await loadLogs();
+    } catch (error: any) {
+      console.error('ScrollyTelling generation error:', error);
+      setAiError(error.message || 'Failed to generate scrollytelling');
+      alert(`Error generating ScrollyTelling: ${error.message}`);
+    } finally {
+      setIsGeneratingScrolly(false);
     }
   };
 
@@ -946,28 +866,14 @@ Students showed 2.3x faster progression when mastering vertex form first...`}
               )}
 
               <div className="mb-4 p-4 bg-purple-500/10 border-4 border-purple-500">
-                <h4 className="font-bold text-dark mb-2">🤖 Choose Integration Method:</h4>
-                <div className="space-y-2 text-sm text-dark/80">
-                  <p>
-                    <strong>AI Integration (Recommended):</strong> Claude will create a natural, coherent narrative
-                    that weaves the decision and investigations together with smooth transitions.
-                  </p>
-                  <p>
-                    <strong>Simple Concatenation:</strong> Faster, appends investigation content at the end without AI processing.
-                  </p>
-                </div>
+                <p className="text-sm text-dark font-bold">
+                  🤖 AI Integration: Claude will create a natural, coherent narrative that weaves the decision and investigations together with smooth transitions.
+                </p>
               </div>
 
               <div className="flex gap-3">
                 <BrutalButton onClick={() => setWizardStep(1)} variant="secondary">
                   ← Back
-                </BrutalButton>
-                <BrutalButton
-                  onClick={generateIntegratedJSON}
-                  variant="secondary"
-                  disabled={isGeneratingAI}
-                >
-                  Simple Integration →
                 </BrutalButton>
                 <BrutalButton
                   onClick={generateWithAI}
@@ -981,7 +887,7 @@ Students showed 2.3x faster progression when mastering vertex form first...`}
                       AI Generating...
                     </>
                   ) : (
-                    <>🤖 AI Integration →</>
+                    <>🤖 Generate with AI →</>
                   )}
                 </BrutalButton>
               </div>
@@ -1129,23 +1035,38 @@ Students showed 2.3x faster progression when mastering vertex form first...`}
                   Transform this decision into an executive-ready ScrollyTelling HTML report following MBB standards
                   (BLUF, SCQA, Minto Pyramid, Cognitive Load Optimization).
                 </p>
-                <BrutalButton
-                  onClick={generateScrollytelling}
-                  variant="secondary"
-                  disabled={isGeneratingScrolly || scrollytellingHTML !== null}
-                  className="w-full"
-                >
-                  {isGeneratingScrolly ? (
-                    <>
-                      <span className="inline-block animate-spin mr-2">⚙️</span>
-                      Generating & Uploading ScrollyTelling...
-                    </>
-                  ) : scrollytellingHTML ? (
-                    <>✅ ScrollyTelling Generated</>
-                  ) : (
-                    <>📊 Generate ScrollyTelling HTML</>
+                <div className="flex gap-2">
+                  <BrutalButton
+                    onClick={generateScrollytelling}
+                    variant="secondary"
+                    disabled={isGeneratingScrolly}
+                    className="flex-1"
+                  >
+                    {isGeneratingScrolly ? (
+                      <>
+                        <span className="inline-block animate-spin mr-2">⚙️</span>
+                        Generating & Uploading ScrollyTelling...
+                      </>
+                    ) : scrollytellingHTML ? (
+                      <>🔄 Regenerate ScrollyTelling</>
+                    ) : (
+                      <>📊 Generate ScrollyTelling HTML</>
+                    )}
+                  </BrutalButton>
+                  {isGeneratingScrolly && (
+                    <BrutalButton
+                      onClick={() => {
+                        setIsGeneratingScrolly(false);
+                        setScrollytellingHTML(null);
+                        alert('✅ Reset complete. You can try again.');
+                      }}
+                      variant="secondary"
+                      className="bg-alert-orange border-alert-orange"
+                    >
+                      ❌ Reset
+                    </BrutalButton>
                   )}
-                </BrutalButton>
+                </div>
                 {scrollytellingHTML && (
                   <div className="mt-3 p-3 bg-green-500/20 border-2 border-green-500">
                     <p className="text-sm font-bold text-dark">✅ ScrollyTelling Report Created!</p>
@@ -1342,11 +1263,31 @@ Students showed 2.3x faster progression when mastering vertex form first...`}
             )}
 
             <div className="flex gap-4 pt-4">
-              <BrutalButton type="submit" variant="primary" disabled={loading}>
+              <BrutalButton type="submit" variant="primary" disabled={loading || isGeneratingScrolly}>
                 <Save size={20} className="inline mr-2" />
                 {loading ? 'Saving...' : editingId ? 'Update Log' : 'Create Log'}
               </BrutalButton>
-              <BrutalButton type="button" variant="secondary" onClick={resetForm}>
+              {editingId && (
+                <BrutalButton
+                  type="button"
+                  variant="primary"
+                  onClick={generateScrollytellingForEdit}
+                  disabled={loading || isGeneratingScrolly}
+                  className="bg-purple-600 border-purple-600"
+                >
+                  {isGeneratingScrolly ? (
+                    <>
+                      <span className="inline-block animate-spin mr-2">⚙️</span>
+                      Generating ScrollyTelling...
+                    </>
+                  ) : (
+                    <>
+                      ✨ Generate ScrollyTelling
+                    </>
+                  )}
+                </BrutalButton>
+              )}
+              <BrutalButton type="button" variant="secondary" onClick={resetForm} disabled={isGeneratingScrolly}>
                 Cancel
               </BrutalButton>
             </div>
