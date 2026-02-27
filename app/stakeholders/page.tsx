@@ -21,6 +21,7 @@ export default function StakeholdersPage() {
   const [newComment, setNewComment] = useState('');
   const [showComments, setShowComments] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [showInvestigationsModal, setShowInvestigationsModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -278,14 +279,36 @@ export default function StakeholdersPage() {
                       </div>
                     </div>
                     <div className="pt-3 border-t-2 border-dark space-y-2">
-                      <BrutalButton
-                        onClick={() => handleViewReport(report)}
-                        variant="primary"
-                        className="w-full gap-2"
-                      >
-                        <Eye size={16} />
-                        View Report
-                      </BrutalButton>
+                      <div className="grid grid-cols-2 gap-2">
+                        <BrutalButton
+                          onClick={() => handleViewReport(report)}
+                          variant="primary"
+                          className="gap-2"
+                        >
+                          <Eye size={16} />
+                          View Report
+                        </BrutalButton>
+                        <BrutalButton
+                          onClick={async () => {
+                            // Load investigations for this report
+                            if (report.decisionLogId) {
+                              try {
+                                const investigations = await getInvestigationsForDecision(report.decisionLogId);
+                                setLinkedInvestigations(investigations);
+                                setShowInvestigationsModal(true);
+                              } catch (error) {
+                                console.error('Error loading investigations:', error);
+                                setLinkedInvestigations([]);
+                              }
+                            }
+                          }}
+                          variant="secondary"
+                          className="gap-2"
+                        >
+                          <Microscope size={16} />
+                          Research
+                        </BrutalButton>
+                      </div>
 
                       {isAdminUser && (
                         <div className="grid grid-cols-2 gap-2">
@@ -330,24 +353,30 @@ export default function StakeholdersPage() {
               </BrutalButton>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div>
               {/* Main content - ScrollyTelling */}
-              <div className="lg:col-span-3">
-                <BrutalCard>
-                  <div className="mb-4 flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-dark">Decision Report</h3>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setShowComments(!showComments)}
-                        className={`px-3 py-2 border-2 border-dark font-bold transition-colors ${
-                          showComments ? 'bg-cool-blue' : 'bg-white hover:bg-cool-blue'
-                        }`}
-                      >
-                        <MessageSquare size={16} className="inline mr-2" />
-                        Comments ({comments.length})
-                      </button>
-                    </div>
+              <BrutalCard>
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-dark">Decision Report</h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowInvestigationsModal(true)}
+                      className="px-3 py-2 border-2 border-dark font-bold bg-white hover:bg-cool-blue transition-colors"
+                    >
+                      <Microscope size={16} className="inline mr-2" />
+                      View Research ({linkedInvestigations.length})
+                    </button>
+                    <button
+                      onClick={() => setShowComments(!showComments)}
+                      className={`px-3 py-2 border-2 border-dark font-bold transition-colors ${
+                        showComments ? 'bg-cool-blue' : 'bg-white hover:bg-cool-blue'
+                      }`}
+                    >
+                      <MessageSquare size={16} className="inline mr-2" />
+                      Comments ({comments.length})
+                    </button>
                   </div>
+                </div>
 
                   {showComments ? (
                     // Comments View
@@ -412,46 +441,66 @@ export default function StakeholdersPage() {
                     </div>
                   )}
                 </BrutalCard>
-              </div>
-
-              {/* Sidebar - Linked Investigations */}
-              <div className="lg:col-span-1">
-                <BrutalCard>
-                  <h3 className="text-lg font-bold text-dark mb-4 flex items-center gap-2">
-                    <Microscope size={20} />
-                    Research Foundation
-                  </h3>
-
-                  {linkedInvestigations.length === 0 ? (
-                    <p className="text-sm text-dark/60">No linked investigations</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {linkedInvestigations.map((inv) => (
-                        <div key={inv.id} className="border-2 border-dark bg-bg-light p-3">
-                          <h4 className="font-bold text-dark text-sm mb-2">{inv.title}</h4>
-                          <div className="space-y-1">
-                            <p className="text-xs text-dark/70">
-                              <strong>Type:</strong> {inv.researchType}
-                            </p>
-                            <p className="text-xs text-dark/70">
-                              <strong>Area:</strong> {inv.mathematicalArea}
-                            </p>
-                            {inv.impactMetrics && (
-                              <p className="text-xs text-dark/70">
-                                <strong>Impact:</strong> {inv.impactMetrics}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </BrutalCard>
-              </div>
             </div>
           </>
         )}
       </div>
+
+      {/* Investigations Modal - Available in both gallery and detail views */}
+      {showInvestigationsModal && (
+        <div className="fixed inset-0 bg-dark/50 flex items-center justify-center p-6 z-50" onClick={() => setShowInvestigationsModal(false)}>
+          <div className="bg-white border-4 border-dark max-w-3xl w-full max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b-4 border-dark p-6 flex items-center justify-between">
+              <h3 className="text-2xl font-bold text-dark flex items-center gap-2">
+                <Microscope size={24} />
+                Research Foundation
+              </h3>
+              <button
+                onClick={() => setShowInvestigationsModal(false)}
+                className="px-4 py-2 border-2 border-dark bg-white hover:bg-alert-orange font-bold transition-colors"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="p-6">
+              {linkedInvestigations.length === 0 ? (
+                <p className="text-dark/60 text-center py-8">No linked investigations</p>
+              ) : (
+                <div className="space-y-4">
+                  {linkedInvestigations.map((inv) => (
+                    <div key={inv.id} className="border-4 border-dark bg-bg-light p-6">
+                      <h4 className="text-xl font-bold text-dark mb-4">{inv.title}</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm font-bold text-dark/60 uppercase tracking-wide mb-1">Research Type</p>
+                          <p className="text-dark">{inv.researchType}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-dark/60 uppercase tracking-wide mb-1">Mathematical Area</p>
+                          <p className="text-dark">{inv.mathematicalArea}</p>
+                        </div>
+                        {inv.impactMetrics && (
+                          <div className="md:col-span-2">
+                            <p className="text-sm font-bold text-dark/60 uppercase tracking-wide mb-1">Impact Metrics</p>
+                            <p className="text-dark">{inv.impactMetrics}</p>
+                          </div>
+                        )}
+                        {inv.hypothesis && (
+                          <div className="md:col-span-2">
+                            <p className="text-sm font-bold text-dark/60 uppercase tracking-wide mb-1">Hypothesis</p>
+                            <p className="text-dark font-serif">{inv.hypothesis}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
