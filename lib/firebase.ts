@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 // Firebase configuration using environment variables
 const firebaseConfig = {
@@ -20,5 +21,15 @@ export const db = getFirestore(app);
 
 // Initialize Storage
 export const storage = getStorage(app);
+
+// Initialize Auth
+export const auth = getAuth(app);
+
+// Google Auth Provider
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account',
+  hd: 'alpha.school', // Restrict to alpha.school domain
+});
 
 export default app;
