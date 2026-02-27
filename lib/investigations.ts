@@ -109,7 +109,8 @@ export async function deleteInvestigation(id: string): Promise<void> {
 // Get all investigations
 export async function getAllInvestigations(): Promise<Investigation[]> {
   try {
-    const q = query(collection(db, 'investigations'), orderBy('createdAt', 'desc'));
+    // Order by startDate (most recent first)
+    const q = query(collection(db, 'investigations'), orderBy('startDate', 'desc'));
     const querySnapshot = await getDocs(q);
 
     return querySnapshot.docs.map((doc) => ({
