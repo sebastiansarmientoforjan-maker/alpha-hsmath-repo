@@ -12,6 +12,9 @@ import {
 import { db } from './firebase';
 import { ScrollytellingReport } from './uploadHtmlReport';
 
+// Re-export the type for external use
+export type { ScrollytellingReport };
+
 // Get all reports
 export async function getAllReports(): Promise<(ScrollytellingReport & { id: string })[]> {
   try {
