@@ -53,6 +53,9 @@ export interface ScrollytellingReport {
 
   description?: string; // Brief context about the report
   reportType?: string; // Type of evidence (Pre-Analysis, Mid-Term, Final, Other)
+
+  // Stakeholder portal approval
+  approvedForStakeholders?: boolean; // Whether this report is approved for stakeholder viewing
 }
 
 export async function uploadHtmlReport(

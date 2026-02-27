@@ -6,7 +6,13 @@ import { getAllReports, ScrollytellingReport } from '@/lib/scrollytellingReports
 import { getInvestigationsForDecision } from '@/lib/decisionInvestigations';
 import { Investigation } from '@/lib/investigations';
 import { addReportComment, getReportComments, ReportComment } from '@/lib/reportComments';
-import { Eye, MessageSquare, Microscope, LogOut } from 'lucide-react';
+import {
+  isAdmin,
+  isAuthorizedViewer,
+  approveReportForStakeholders,
+  disapproveReportForStakeholders
+} from '@/lib/stakeholderApproval';
+import { Eye, MessageSquare, Microscope, LogOut, CheckCircle, XCircle, Shield } from 'lucide-react';
 import { auth, googleProvider } from '@/lib/firebase';
 import { signInWithPopup, signOut, User } from 'firebase/auth';
 
@@ -20,32 +26,29 @@ export default function StakeholdersPage() {
   const [newComment, setNewComment] = useState('');
   const [showComments, setShowComments] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState(false);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
+      setIsAdminUser(isAdmin(currentUser?.email || null));
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (user && isAuthorized(user.email)) {
-      loadPublishedReports();
+    if (user && isAuthorizedViewer(user.email)) {
+      loadReports();
     }
-  }, [user]);
-
-  const isAuthorized = (email: string | null): boolean => {
-    if (!email) return false;
-    return email.endsWith('@alpha.school');
-  };
+  }, [user, isAdminUser]);
 
   const handleGoogleSignIn = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const userEmail = result.user.email;
 
-      if (!isAuthorized(userEmail)) {
+      if (!isAuthorizedViewer(userEmail)) {
         await signOut(auth);
         alert('Access denied. Only @alpha.school emails are authorized.');
       }
@@ -60,21 +63,56 @@ export default function StakeholdersPage() {
       await signOut(auth);
       setReports([]);
       setSelectedReport(null);
+      setIsAdminUser(false);
     } catch (error) {
       console.error('Sign out error:', error);
     }
   };
 
-  const loadPublishedReports = async () => {
+  const loadReports = async () => {
     try {
       const allReports = await getAllReports();
-      // Filter: only Published status AND has a decisionLogId (linked to a decision)
-      const publishedDecisionReports = allReports.filter(
-        (report) => report.status === 'Published' && report.decisionLogId
-      );
-      setReports(publishedDecisionReports);
+
+      if (isAdminUser) {
+        // Admin sees all Published reports with decisionLogId
+        const publishedDecisionReports = allReports.filter(
+          (report) => report.status === 'Published' && report.decisionLogId
+        );
+        setReports(publishedDecisionReports);
+      } else {
+        // Viewers only see approved reports
+        const approvedReports = allReports.filter(
+          (report) =>
+            report.status === 'Published' &&
+            report.decisionLogId &&
+            report.approvedForStakeholders === true
+        );
+        setReports(approvedReports);
+      }
     } catch (error) {
       console.error('Error loading reports:', error);
+    }
+  };
+
+  const handleApprove = async (reportId: string) => {
+    try {
+      await approveReportForStakeholders(reportId);
+      await loadReports();
+      alert('Report approved for stakeholder viewing!');
+    } catch (error) {
+      console.error('Error approving report:', error);
+      alert('Failed to approve report.');
+    }
+  };
+
+  const handleDisapprove = async (reportId: string) => {
+    try {
+      await disapproveReportForStakeholders(reportId);
+      await loadReports();
+      alert('Report disapproved for stakeholder viewing.');
+    } catch (error) {
+      console.error('Error disapproving report:', error);
+      alert('Failed to disapprove report.');
     }
   };
 
@@ -110,8 +148,7 @@ export default function StakeholdersPage() {
     if (!newComment.trim() || !selectedReport || !user) return;
 
     try {
-      // Save comment to Firestore
-      const commentId = await addReportComment(
+      await addReportComment(
         selectedReport.id,
         user.uid,
         user.email || '',
@@ -139,16 +176,36 @@ export default function StakeholdersPage() {
     );
   }
 
-  // Not signed in
+  // Not signed in - Show login page with Google button
   if (!user) {
     return (
       <div className="min-h-screen bg-bg-light flex items-center justify-center p-6">
         <BrutalCard className="max-w-md w-full text-center">
-          <h1 className="text-3xl font-bold text-dark mb-4">Stakeholder Portal</h1>
-          <p className="text-dark/70 mb-6">
-            Sign in with your @alpha.school email to access decision reports.
-          </p>
-          <BrutalButton onClick={handleGoogleSignIn} variant="primary" className="w-full">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-dark mb-2">Stakeholder Portal</h1>
+            <p className="text-dark/70">
+              View decision reports and research foundations
+            </p>
+          </div>
+
+          <div className="mb-6 p-4 border-2 border-dark bg-cool-blue/20">
+            <p className="text-sm text-dark/80">
+              <strong>Access Requirements:</strong><br />
+              Sign in with your @alpha.school email
+            </p>
+          </div>
+
+          <BrutalButton
+            onClick={handleGoogleSignIn}
+            variant="primary"
+            className="w-full text-lg py-4"
+          >
+            <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24">
+              <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
             Sign in with Google
           </BrutalButton>
         </BrutalCard>
@@ -157,7 +214,7 @@ export default function StakeholdersPage() {
   }
 
   // Not authorized
-  if (!isAuthorized(user.email)) {
+  if (!isAuthorizedViewer(user.email)) {
     return (
       <div className="min-h-screen bg-bg-light flex items-center justify-center p-6">
         <BrutalCard className="max-w-md w-full text-center">
@@ -183,8 +240,18 @@ export default function StakeholdersPage() {
       <div className="bg-white border-b-4 border-dark p-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-dark">Decision Reports</h1>
-            <p className="text-sm text-dark/70">Stakeholder Portal</p>
+            <h1 className="text-2xl font-bold text-dark flex items-center gap-2">
+              Decision Reports
+              {isAdminUser && (
+                <span className="flex items-center gap-1 px-2 py-1 text-sm border-2 border-dark bg-alert-orange text-white">
+                  <Shield size={16} />
+                  ADMIN
+                </span>
+              )}
+            </h1>
+            <p className="text-sm text-dark/70">
+              {isAdminUser ? 'Admin Portal - Manage Stakeholder Reports' : 'Stakeholder Portal'}
+            </p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -204,16 +271,21 @@ export default function StakeholdersPage() {
           // Gallery View
           <>
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-dark mb-2">Published Decision Reports</h2>
+              <h2 className="text-xl font-bold text-dark mb-2">
+                {isAdminUser ? 'Published Reports - Approval Management' : 'Approved Decision Reports'}
+              </h2>
               <p className="text-dark/70">
                 {reports.length} {reports.length === 1 ? 'report' : 'reports'} available
+                {isAdminUser && ' (Approve reports to make them visible to stakeholders)'}
               </p>
             </div>
 
             {reports.length === 0 ? (
               <BrutalCard>
                 <p className="text-center text-dark/60 py-8">
-                  No published reports available yet.
+                  {isAdminUser
+                    ? 'No published reports with decisions available yet.'
+                    : 'No approved reports available yet.'}
                 </p>
               </BrutalCard>
             ) : (
@@ -221,7 +293,18 @@ export default function StakeholdersPage() {
                 {reports.map((report) => (
                   <BrutalCard key={report.id} hoverable>
                     <div className="mb-3">
-                      <h3 className="text-lg font-bold text-dark mb-2">{report.title}</h3>
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-lg font-bold text-dark flex-1">{report.title}</h3>
+                        {isAdminUser && (
+                          <span className={`px-2 py-1 text-xs font-bold border-2 border-dark ${
+                            report.approvedForStakeholders
+                              ? 'bg-success-green text-white'
+                              : 'bg-gray-300 text-dark'
+                          }`}>
+                            {report.approvedForStakeholders ? '✓ APPROVED' : 'PENDING'}
+                          </span>
+                        )}
+                      </div>
                       {report.description && (
                         <p className="text-sm text-dark/70 mb-3">{report.description}</p>
                       )}
@@ -236,7 +319,7 @@ export default function StakeholdersPage() {
                         ))}
                       </div>
                     </div>
-                    <div className="pt-3 border-t-2 border-dark">
+                    <div className="pt-3 border-t-2 border-dark space-y-2">
                       <BrutalButton
                         onClick={() => handleViewReport(report)}
                         variant="primary"
@@ -245,6 +328,29 @@ export default function StakeholdersPage() {
                         <Eye size={16} />
                         View Report
                       </BrutalButton>
+
+                      {isAdminUser && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <BrutalButton
+                            onClick={() => handleApprove(report.id)}
+                            variant="secondary"
+                            className="gap-1 text-sm"
+                            disabled={report.approvedForStakeholders === true}
+                          >
+                            <CheckCircle size={14} />
+                            Approve
+                          </BrutalButton>
+                          <BrutalButton
+                            onClick={() => handleDisapprove(report.id)}
+                            variant="secondary"
+                            className="gap-1 text-sm"
+                            disabled={report.approvedForStakeholders === false}
+                          >
+                            <XCircle size={14} />
+                            Disapprove
+                          </BrutalButton>
+                        </div>
+                      )}
                     </div>
                   </BrutalCard>
                 ))}
