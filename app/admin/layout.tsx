@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, Database, Home, Microscope } from 'lucide-react';
+import { FileText, Database, Home, Microscope, ArrowLeft, Users } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -17,7 +17,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-bg-light flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r-4 border-dark p-6">
+      <aside className="w-64 bg-white border-r-4 border-dark p-6 flex flex-col">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-dark">
             Alpha Math
@@ -25,7 +25,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </h1>
         </div>
 
-        <nav className="space-y-2">
+        <nav className="space-y-2 flex-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -47,12 +47,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        <div className="mt-8 pt-8 border-t-4 border-dark">
+        <div className="mt-auto pt-8 border-t-4 border-dark space-y-2">
           <Link
-            href="/gallery"
-            className="text-sm text-dark hover:text-cool-blue font-medium transition-colors"
+            href="/"
+            className="flex items-center gap-2 text-sm text-dark hover:text-cool-blue font-medium transition-colors"
           >
-            → View Public Gallery
+            <ArrowLeft size={16} />
+            Home Page
+          </Link>
+          <Link
+            href="/stakeholders"
+            className="flex items-center gap-2 text-sm text-dark hover:text-cool-blue font-medium transition-colors"
+          >
+            <Users size={16} />
+            Stakeholder Portal
           </Link>
         </div>
       </aside>

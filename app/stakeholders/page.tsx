@@ -7,12 +7,13 @@ import { getAllReports, ScrollytellingReport } from '@/lib/scrollytellingReports
 import { getInvestigationsForDecision } from '@/lib/decisionInvestigations';
 import { Investigation } from '@/lib/investigations';
 import { addReportComment, getReportComments, ReportComment } from '@/lib/reportComments';
-import { Eye, MessageSquare, Microscope, LogOut, Shield, ArrowLeft } from 'lucide-react';
+import { Eye, MessageSquare, Microscope, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import GlobalHeader from '@/components/GlobalHeader';
 
 export default function StakeholdersPage() {
   const router = useRouter();
-  const { user, loading, isAdmin: isAdminUser, isViewer, signOut } = useAuth();
+  const { user, loading, isAdmin: isAdminUser, isViewer } = useAuth();
   const [reports, setReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
   const [selectedReport, setSelectedReport] = useState<(ScrollytellingReport & { id: string }) | null>(null);
   const [linkedInvestigations, setLinkedInvestigations] = useState<Investigation[]>([]);
@@ -27,11 +28,6 @@ export default function StakeholdersPage() {
       loadReports();
     }
   }, [user, isAdminUser]);
-
-  const handleSignOut = async () => {
-    await signOut();
-    router.push('/');
-  };
 
   const loadReports = async () => {
     try {
@@ -161,56 +157,40 @@ export default function StakeholdersPage() {
           <p className="text-sm text-dark/50 mb-6">
             Signed in as: {user?.email}
           </p>
-          <BrutalButton onClick={handleSignOut} variant="secondary" className="w-full">
-            Sign Out
+          <BrutalButton onClick={() => router.push('/')} variant="secondary" className="w-full">
+            Go to Home
           </BrutalButton>
         </BrutalCard>
       </div>
     );
   }
 
-  // Authorized - Show gallery or report view
+  // Authorized - Show reports
   return (
     <div className="min-h-screen bg-bg-light">
-      {/* Header */}
-      <div className="bg-white border-b-4 border-dark p-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-dark flex items-center gap-2">
-              Decision Reports
-              {isAdminUser && (
-                <span className="flex items-center gap-1 px-2 py-1 text-sm border-2 border-dark bg-alert-orange text-white">
-                  <Shield size={16} />
-                  ADMIN
-                </span>
-              )}
-            </h1>
-            <p className="text-sm text-dark/70">
-              {isAdminUser ? 'Admin Portal - View and Comment on Reports' : 'Stakeholder Portal'}
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm font-medium text-dark">{user.displayName || 'User'}</p>
-              <p className="text-xs text-dark/70">{user.email}</p>
-            </div>
+      <GlobalHeader />
+
+      {/* Page Header */}
+      <div className="bg-white border-b-4 border-dark p-6">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-2xl font-bold text-dark flex items-center gap-2">
+            Decision Reports
             {isAdminUser && (
-              <BrutalButton onClick={() => router.push('/admin')} variant="primary" className="gap-2">
-                <ArrowLeft size={16} />
-                Admin Panel
-              </BrutalButton>
+              <span className="flex items-center gap-1 px-2 py-1 text-sm border-2 border-dark bg-alert-orange text-white">
+                <Shield size={16} />
+                ADMIN
+              </span>
             )}
-            <BrutalButton onClick={handleSignOut} variant="secondary" className="gap-2">
-              <LogOut size={16} />
-              Sign Out
-            </BrutalButton>
-          </div>
+          </h1>
+          <p className="text-sm text-dark/70">
+            {isAdminUser ? 'Admin Portal - View and Comment on Reports' : 'Stakeholder Portal'}
+          </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto p-6">
         {!selectedReport ? (
-          // Gallery View
+          // Reports List View
           <>
             <div className="mb-6">
               <h2 className="text-xl font-bold text-dark mb-2">
@@ -297,7 +277,7 @@ export default function StakeholdersPage() {
                 )}
               </div>
               <BrutalButton onClick={() => setSelectedReport(null)} variant="secondary">
-                ← Back to Gallery
+                ← Back to Reports
               </BrutalButton>
             </div>
 

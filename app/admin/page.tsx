@@ -187,8 +187,8 @@ export default function AdminDashboard() {
             to relevant investigations. Add school context for decisions based on student cases.
           </p>
           <p>
-            <strong className="text-dark">5. Share Results:</strong> Published content appears in the
-            Gallery for stakeholders to explore investigations and understand decisions.
+            <strong className="text-dark">5. Share Results:</strong> Published reports appear in the
+            Stakeholder Portal where authorized viewers can explore decisions and leave comments.
           </p>
         </div>
       </BrutalCard>
