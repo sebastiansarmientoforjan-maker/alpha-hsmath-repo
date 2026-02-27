@@ -15,11 +15,14 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let redirected = false;
+
     // Handle redirect result from Google sign-in
     const handleRedirectResult = async () => {
       try {
         const result = await getRedirectResult(auth);
         if (result && result.user) {
+          redirected = true;
           const userEmail = result.user.email;
 
           // Redirect based on role
@@ -42,6 +45,16 @@ export default function Home() {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
       setLoading(false);
+
+      // Auto-redirect authenticated users to their appropriate panel
+      if (currentUser && !redirected) {
+        const userEmail = currentUser.email;
+        if (isAdmin(userEmail)) {
+          router.push('/admin');
+        } else if (isAuthorizedViewer(userEmail)) {
+          router.push('/stakeholders');
+        }
+      }
     });
     return () => unsubscribe();
   }, [router]);
