@@ -1,24 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { BrutalCard, BrutalButton } from '@/components/ui';
 import { getAllReports, ScrollytellingReport } from '@/lib/scrollytellingReports';
 import { getInvestigationsForDecision } from '@/lib/decisionInvestigations';
 import { Investigation } from '@/lib/investigations';
 import { addReportComment, getReportComments, ReportComment } from '@/lib/reportComments';
-import {
-  isAdmin,
-  isAuthorizedViewer,
-  approveReportForStakeholders,
-  disapproveReportForStakeholders
-} from '@/lib/stakeholderApproval';
+import { approveReportForStakeholders, disapproveReportForStakeholders } from '@/lib/stakeholderApproval';
 import { Eye, MessageSquare, Microscope, LogOut, CheckCircle, XCircle, Shield } from 'lucide-react';
-import { auth } from '@/lib/firebase';
-import { signOut, User } from 'firebase/auth';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function StakeholdersPage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { user, loading, isAdmin: isAdminUser, signOut } = useAuth();
   const [reports, setReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
   const [selectedReport, setSelectedReport] = useState<(ScrollytellingReport & { id: string }) | null>(null);
   const [linkedInvestigations, setLinkedInvestigations] = useState<Investigation[]>([]);
@@ -26,36 +21,16 @@ export default function StakeholdersPage() {
   const [newComment, setNewComment] = useState('');
   const [showComments, setShowComments] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
-  const [isAdminUser, setIsAdminUser] = useState(false);
 
   useEffect(() => {
-    // Only listen to auth state changes - OAuth redirect is handled by home page
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
-      setUser(currentUser);
-      setIsAdminUser(isAdmin(currentUser?.email || null));
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (user && isAuthorizedViewer(user.email)) {
+    if (user) {
       loadReports();
     }
   }, [user, isAdminUser]);
 
   const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      sessionStorage.removeItem('auth_redirect_processed');
-      setReports([]);
-      setSelectedReport(null);
-      setIsAdminUser(false);
-      // Redirect to home page after sign out
-      window.location.href = '/';
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
+    await signOut();
+    router.push('/');
   };
 
   const loadReports = async () => {
