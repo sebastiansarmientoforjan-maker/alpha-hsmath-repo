@@ -1,6 +1,5 @@
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
-import { storage, db } from './firebase';
+import { db } from './firebase';
 
 // Extract metadata from HTML content
 export function extractMetadataFromHTML(htmlContent: string): {
@@ -42,7 +41,8 @@ export function extractMetadataFromHTML(htmlContent: string): {
 export interface ScrollytellingReport {
   title: string;
   filename: string;
-  storage_url: string;
+  html_content?: string; // Store HTML directly in Firestore (new method)
+  storage_url?: string; // Legacy: URL from Firebase Storage (backward compatibility)
   status: 'Published' | 'Archived' | 'Draft';
   tags: string[];
   createdAt: Timestamp;
@@ -66,20 +66,14 @@ export async function uploadHtmlReport(
   reportType: string = 'Other'
 ): Promise<string> {
   try {
-    // Create a reference to the file in Firebase Storage
-    const storageRef = ref(storage, `scrollytelling_files/${Date.now()}_${file.name}`);
+    // Read file content as text
+    const htmlContent = await file.text();
 
-    // Upload the file
-    const snapshot = await uploadBytes(storageRef, file);
-
-    // Get the download URL
-    const downloadURL = await getDownloadURL(snapshot.ref);
-
-    // Save metadata to Firestore
+    // Save HTML content and metadata directly to Firestore
     const reportData: Omit<ScrollytellingReport, 'id'> = {
       title,
       filename: file.name,
-      storage_url: downloadURL,
+      html_content: htmlContent,
       status,
       tags,
       createdAt: Timestamp.now(),
@@ -109,24 +103,13 @@ export async function uploadHtmlFromString(
   reportType: string = 'Other'
 ): Promise<string> {
   try {
-    // Convert HTML string to Blob
-    const blob = new Blob([htmlContent], { type: 'text/html' });
     const filename = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.html`;
 
-    // Create a reference to the file in Firebase Storage
-    const storageRef = ref(storage, `scrollytelling_files/${filename}`);
-
-    // Upload the blob
-    const snapshot = await uploadBytes(storageRef, blob);
-
-    // Get the download URL
-    const downloadURL = await getDownloadURL(snapshot.ref);
-
-    // Save metadata to Firestore
+    // Save HTML content and metadata directly to Firestore (no Storage needed)
     const reportData: Omit<ScrollytellingReport, 'id'> = {
       title,
       filename,
-      storage_url: downloadURL,
+      html_content: htmlContent,
       status,
       tags,
       createdAt: Timestamp.now(),

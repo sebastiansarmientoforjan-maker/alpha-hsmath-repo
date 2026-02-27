@@ -559,15 +559,19 @@ export default function ScrollytellingAdmin() {
                         </td>
                         <td className="p-3">
                           <div className="flex gap-2 justify-end">
-                            <a
-                              href={report.storage_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              onClick={() => {
+                                const newWindow = window.open('', '_blank');
+                                if (newWindow) {
+                                  newWindow.document.write(report.html_content || report.storage_url || '<p>No content available</p>');
+                                  newWindow.document.close();
+                                }
+                              }}
                               className="p-2 border-2 border-dark bg-white hover:bg-cool-blue transition-colors"
                               title="View report"
                             >
                               <ExternalLink size={16} />
-                            </a>
+                            </button>
                             <button
                               onClick={() => handleEditReport(report)}
                               className="p-2 border-2 border-dark bg-white hover:bg-cool-blue transition-colors"

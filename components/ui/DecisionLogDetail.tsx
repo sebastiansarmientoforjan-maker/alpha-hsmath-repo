@@ -112,7 +112,8 @@ export function DecisionLogDetail({
                   <h4 className="text-lg font-bold text-dark mb-3">Preview: {selectedReport.title}</h4>
                   <div className="border-4 border-dark bg-white">
                     <iframe
-                      src={selectedReport.storage_url}
+                      srcDoc={selectedReport.html_content || undefined}
+                      src={selectedReport.html_content ? undefined : selectedReport.storage_url}
                       className="w-full h-[500px]"
                       title={selectedReport.title}
                       sandbox="allow-scripts allow-same-origin"
