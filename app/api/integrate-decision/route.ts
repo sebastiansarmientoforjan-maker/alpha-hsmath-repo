@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import {
+  BedrockRuntimeClient,
+  InvokeModelCommand,
+} from '@aws-sdk/client-bedrock-runtime';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,17 +15,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Initialize Anthropic client
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
+    // Initialize AWS Bedrock client
+    const awsRegion = process.env.AWS_REGION || 'us-east-1';
+    const awsAccessKeyId = process.env.AWS_ACCESS_KEY_ID;
+    const awsSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+
+    if (!awsAccessKeyId || !awsSecretAccessKey) {
       return NextResponse.json(
-        { error: 'Anthropic API key not configured' },
+        { error: 'AWS credentials not configured' },
         { status: 500 }
       );
     }
 
-    const anthropic = new Anthropic({
-      apiKey: apiKey,
+    const client = new BedrockRuntimeClient({
+      region: awsRegion,
+      credentials: {
+        accessKeyId: awsAccessKeyId,
+        secretAccessKey: awsSecretAccessKey,
+      },
     });
 
     // Build the prompt
@@ -59,9 +69,11 @@ Create a single, integrated narrative document that:
 Return ONLY the integrated markdown document. Do NOT add meta-commentary or explanations.
 Start directly with the content using appropriate markdown headers (##, ###).`;
 
-    // Call Claude API
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+    // Prepare request for Claude on Bedrock
+    const modelId = 'anthropic.claude-sonnet-4-20250514-v1:0'; // Claude Sonnet 4 on Bedrock
+
+    const payload = {
+      anthropic_version: 'bedrock-2023-05-31',
       max_tokens: 8000,
       messages: [
         {
@@ -69,22 +81,31 @@ Start directly with the content using appropriate markdown headers (##, ###).`;
           content: prompt,
         },
       ],
+    };
+
+    const command = new InvokeModelCommand({
+      modelId,
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: JSON.stringify(payload),
     });
 
+    // Call Bedrock
+    const response = await client.send(command);
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+
     // Extract the response text
-    const responseText = message.content[0].type === 'text'
-      ? message.content[0].text
-      : '';
+    const responseText = responseBody.content?.[0]?.text || '';
 
     return NextResponse.json({
       integratedText: responseText,
       usage: {
-        inputTokens: message.usage.input_tokens,
-        outputTokens: message.usage.output_tokens,
+        inputTokens: responseBody.usage?.input_tokens || 0,
+        outputTokens: responseBody.usage?.output_tokens || 0,
       },
     });
   } catch (error: any) {
-    console.error('Error calling Claude API:', error);
+    console.error('Error calling AWS Bedrock:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to integrate content' },
       { status: 500 }

@@ -852,7 +852,7 @@ Students showed 2.3x faster progression when mastering vertex form first...`}
                 <div className="mb-4 p-3 bg-alert-orange/20 border-2 border-alert-orange">
                   <p className="text-sm font-bold text-dark">⚠️ AI Error: {aiError}</p>
                   <p className="text-xs text-dark/70 mt-1">
-                    Make sure ANTHROPIC_API_KEY is configured in your .env.local file
+                    Make sure AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION) are configured in your .env.local file
                   </p>
                 </div>
               )}
