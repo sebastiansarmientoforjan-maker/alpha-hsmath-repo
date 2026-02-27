@@ -70,7 +70,8 @@ Return ONLY the integrated markdown document. Do NOT add meta-commentary or expl
 Start directly with the content using appropriate markdown headers (##, ###).`;
 
     // Prepare request for Claude on Bedrock
-    const modelId = 'anthropic.claude-sonnet-4-20250514-v1:0'; // Claude Sonnet 4 on Bedrock
+    // Use inference profile for cross-region access
+    const modelId = 'us.anthropic.claude-sonnet-4-20250514-v1:0'; // Claude Sonnet 4 inference profile
 
     const payload = {
       anthropic_version: 'bedrock-2023-05-31',
