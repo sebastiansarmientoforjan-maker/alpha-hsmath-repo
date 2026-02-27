@@ -176,46 +176,28 @@ export default function Home() {
           <BrutalCard hoverable>
             <Microscope size={40} className="text-cool-blue mb-4" />
             <h3 className="text-xl font-bold text-dark mb-3">Research Repository</h3>
-            <p className="text-dark/70 font-serif mb-4">
+            <p className="text-dark/70 font-serif">
               Document learning pattern analysis, content development strategies, and AI-powered
               adaptive pathways with measurable impact metrics.
             </p>
-            <button
-              onClick={handleAccessPortal}
-              className="inline-flex items-center gap-2 text-cool-blue font-bold hover:underline"
-            >
-              Explore Investigations <ArrowRight size={16} />
-            </button>
           </BrutalCard>
 
           <BrutalCard hoverable>
             <Database size={40} className="text-cool-blue mb-4" />
             <h3 className="text-xl font-bold text-dark mb-3">Decision Logs</h3>
-            <p className="text-dark/70 font-serif mb-4">
+            <p className="text-dark/70 font-serif">
               Link pedagogical decisions to research findings. Track adjustments, validate
               hypotheses, and document the evolution of instructional strategies.
             </p>
-            <button
-              onClick={handleAccessPortal}
-              className="inline-flex items-center gap-2 text-cool-blue font-bold hover:underline"
-            >
-              View Decisions <ArrowRight size={16} />
-            </button>
           </BrutalCard>
 
           <BrutalCard hoverable>
             <FileText size={40} className="text-cool-blue mb-4" />
             <h3 className="text-xl font-bold text-dark mb-3">Evidence Reports</h3>
-            <p className="text-dark/70 font-serif mb-4">
+            <p className="text-dark/70 font-serif">
               Interactive scrollytelling narratives that transform complex data analysis
               into compelling visual stories for stakeholders.
             </p>
-            <button
-              onClick={handleAccessPortal}
-              className="inline-flex items-center gap-2 text-cool-blue font-bold hover:underline"
-            >
-              Browse Reports <ArrowRight size={16} />
-            </button>
           </BrutalCard>
         </div>
 
