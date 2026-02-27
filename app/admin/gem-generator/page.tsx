@@ -22,6 +22,7 @@ export default function GemGenerator() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showRemixModal, setShowRemixModal] = useState(false);
+  const [resultsText, setResultsText] = useState('');
   const [remixData, setRemixData] = useState({
     title: '',
     description: '',
@@ -244,12 +245,54 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
     // Pre-fill with search query
     setRemixData({
       title: searchQuery,
-      description: `Research investigation based on ${activeEngine.toUpperCase()} prompt: ${searchQuery}`,
+      description: '',
       researchType: 'Systematic Literature Review',
       mathematicalArea: 'Algebra',
       author: user.displayName || user.email || '',
     });
+    setResultsText('');
     setShowRemixModal(true);
+  };
+
+  const extractCitationsFromResults = (text: string) => {
+    const citations: Array<{ title: string; url: string; authors?: string }> = [];
+
+    // Try to find citation patterns (basic extraction)
+    const lines = text.split('\n');
+    for (const line of lines) {
+      // Look for markdown links or URLs
+      const urlMatch = line.match(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/);
+      if (urlMatch) {
+        citations.push({
+          title: urlMatch[1],
+          url: urlMatch[2],
+        });
+      }
+    }
+
+    return citations;
+  };
+
+  const extractKeyFindings = (text: string) => {
+    // Look for sections with findings, conclusions, or key points
+    const sections = [
+      'key findings',
+      'main findings',
+      'conclusions',
+      'summary',
+      'highlights',
+    ];
+
+    for (const section of sections) {
+      const regex = new RegExp(`${section}[:\\s]+([^#]+?)(?=\\n#{1,2}|$)`, 'i');
+      const match = text.match(regex);
+      if (match) {
+        return match[1].trim();
+      }
+    }
+
+    // If no section found, return first 500 chars
+    return text.substring(0, 500) + '...';
   };
 
   const saveRemixToInvestigation = async () => {
@@ -258,22 +301,40 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
       return;
     }
 
+    if (!resultsText.trim()) {
+      alert('Please paste the research results from Gemini/Perplexity first.');
+      return;
+    }
+
     try {
       setSaving(true);
+
+      // Extract information from pasted results
+      const citations = extractCitationsFromResults(resultsText);
+      const keyFindings = extractKeyFindings(resultsText);
+
+      // Count sources mentioned
+      const sourceCount = (resultsText.match(/\d+\./g) || []).length;
+
       await createInvestigation({
         title: remixData.title,
-        description: remixData.description,
+        description: remixData.description || `Systematic literature review on ${searchQuery}`,
         researchType: remixData.researchType,
         mathematicalArea: remixData.mathematicalArea,
-        status: 'In Progress',
-        keyFindings: `Generated from ${activeEngine.toUpperCase()} prompt. Awaiting research execution.`,
-        methodology: `Using ${activeEngine === 'gemini' ? 'Gemini Deep Research' : 'Perplexity AI'} with RLM architecture (Read, List, Mono-cite).\n\nPrompt Template:\n${getActivePrompt().substring(0, 500)}...`,
+        status: 'Completed',
+        keyFindings: keyFindings,
+        methodology: `Research conducted using ${activeEngine === 'gemini' ? 'Gemini Deep Research' : 'Perplexity AI'} with RLM architecture (Read, List, Mono-cite).\n\nOriginal Query: "${searchQuery}"\n\nFull results captured in key findings section.`,
+        impactMetrics: `${sourceCount} sources analyzed`,
         author: remixData.author,
         startDate: Timestamp.now(),
-        searchKeywords: searchQuery.split(',').map(k => k.trim()),
-        databases: ['Google Scholar', 'ERIC', 'ResearchGate', 'Semantic Scholar'],
+        completionDate: Timestamp.now(),
+        searchKeywords: searchQuery.split(/[,\s]+/).filter(k => k.trim()),
+        databases: ['Google Scholar', 'ERIC', 'ResearchGate', 'Semantic Scholar', 'Academic Sources'],
+        paperCount: sourceCount,
+        citationLinks: citations.length > 0 ? citations : undefined,
       });
-      alert('✅ Research Investigation created successfully!');
+
+      alert('✅ Research Investigation created successfully!\n\nCheck Research Repository to view your investigation.');
       setShowRemixModal(false);
       // Reset form
       setRemixData({
@@ -283,6 +344,7 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
         mathematicalArea: 'Algebra',
         author: '',
       });
+      setResultsText('');
     } catch (error) {
       console.error('Error creating investigation:', error);
       alert('Failed to create investigation. Please try again.');
@@ -423,7 +485,7 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
                 className="gap-2 bg-alert-orange border-alert-orange"
               >
                 <Wand2 size={16} />
-                Remix to Research
+                Paste Results & Save
               </BrutalButton>
             </div>
           </div>
@@ -440,8 +502,8 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
               <li>Abre {activeEngine === 'gemini' ? <><strong>Gemini Deep Research</strong> o <strong>Gemini 2.0 Flash Thinking</strong></> : <strong>Perplexity AI</strong>}</li>
               <li>Pega el prompt y ejecuta la búsqueda</li>
               <li>Espera a que complete todas las fases (típicamente 5-10 minutos)</li>
-              <li>Revisa la <strong>Source Reliability Matrix</strong> con fuentes scoreadas</li>
-              <li>Usa los hallazgos para crear una investigación en <strong>Research Repository</strong></li>
+              <li>Copia TODOS los resultados (incluyendo la <strong>Source Reliability Matrix</strong>)</li>
+              <li>Click en <strong>"Paste Results & Save"</strong> (botón naranja arriba) para crear una investigación</li>
             </ol>
             <div className="mt-3 p-3 border-2 border-dark bg-white">
               <p className="text-xs font-bold text-dark mb-1">🔍 Diferencias clave:</p>
@@ -473,7 +535,7 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-dark flex items-center gap-2">
                   <Wand2 size={28} className="text-alert-orange" />
-                  Remix to Research Investigation
+                  Create Investigation from Results
                 </h2>
                 <button
                   onClick={() => setShowRemixModal(false)}
@@ -483,7 +545,50 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
                 </button>
               </div>
 
+              {/* Instructions */}
+              <div className="mb-4 p-4 border-4 border-cool-blue bg-cool-blue/10">
+                <p className="text-sm font-bold text-dark mb-2">📝 How to use this:</p>
+                <ol className="text-sm text-dark/70 space-y-1 list-decimal list-inside">
+                  <li>Copy the GEM prompt above and run it in {activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'}</li>
+                  <li>Wait for the complete results (including Source Reliability Matrix)</li>
+                  <li>Copy ALL the results and paste them in the field below</li>
+                  <li>Fill in the metadata fields</li>
+                  <li>Click "Create Investigation"</li>
+                </ol>
+              </div>
+
               <div className="space-y-4">
+                {/* Results Textarea - MAIN FIELD */}
+                <div>
+                  <label className="block text-sm font-bold text-dark mb-2">
+                    Research Results from {activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} *
+                  </label>
+                  <textarea
+                    value={resultsText}
+                    onChange={(e) => setResultsText(e.target.value)}
+                    rows={12}
+                    className="w-full border-4 border-dark px-4 py-3 text-dark font-mono text-xs focus:outline-none focus:ring-4 focus:ring-alert-orange"
+                    placeholder="Paste the complete results here, including:
+- Source Reliability Matrix (table with scores)
+- Key findings and conclusions
+- All citations and references
+- Any methodology notes
+
+The system will automatically extract:
+✓ Citations and sources
+✓ Key findings
+✓ Paper count
+✓ Methodology details"
+                  />
+                  <p className="text-xs text-dark/60 mt-1">
+                    {resultsText.length} characters • {resultsText.split('\n').length} lines
+                  </p>
+                </div>
+
+                <div className="border-t-4 border-dark pt-4">
+                  <p className="text-sm font-bold text-dark mb-3">Investigation Metadata:</p>
+                </div>
+
                 <div>
                   <label className="block text-sm font-bold text-dark mb-2">
                     Investigation Title *
@@ -561,13 +666,15 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
                   />
                 </div>
 
-                <div className="p-4 border-4 border-cool-blue bg-cool-blue/10">
-                  <p className="text-sm font-bold text-dark mb-2">📝 Auto-Generated Fields:</p>
+                <div className="p-4 border-4 border-alert-orange bg-alert-orange/10">
+                  <p className="text-sm font-bold text-dark mb-2">🤖 Auto-Extracted from Results:</p>
                   <ul className="text-sm text-dark/70 space-y-1">
-                    <li>• <strong>Status:</strong> In Progress</li>
-                    <li>• <strong>Methodology:</strong> Using {activeEngine === 'gemini' ? 'Gemini Deep Research' : 'Perplexity AI'} with RLM architecture</li>
-                    <li>• <strong>Search Keywords:</strong> Extracted from query</li>
-                    <li>• <strong>Start Date:</strong> Today</li>
+                    <li>• <strong>Key Findings:</strong> Extracted from results text</li>
+                    <li>• <strong>Citations & Sources:</strong> Auto-detected from markdown links</li>
+                    <li>• <strong>Paper Count:</strong> Counted from numbered sources</li>
+                    <li>• <strong>Methodology:</strong> {activeEngine === 'gemini' ? 'Gemini Deep Research' : 'Perplexity AI'} + RLM architecture</li>
+                    <li>• <strong>Status:</strong> Completed (since results are ready)</li>
+                    <li>• <strong>Completion Date:</strong> Today</li>
                   </ul>
                 </div>
               </div>
@@ -577,7 +684,7 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
                   onClick={saveRemixToInvestigation}
                   variant="primary"
                   className="flex-1 gap-2"
-                  disabled={saving || !remixData.title || !remixData.description || !remixData.author}
+                  disabled={saving || !remixData.title || !remixData.author || !resultsText.trim()}
                 >
                   <Save size={16} />
                   {saving ? 'Creating...' : 'Create Investigation'}
