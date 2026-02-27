@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, Database, Home, Microscope, ArrowLeft, Users } from 'lucide-react';
+import { FileText, Database, Home, Microscope, ArrowLeft, Users, Sparkles } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: Home },
+    { href: '/admin/gem-generator', label: 'GEM Generator', icon: Sparkles },
     { href: '/admin/research', label: 'Research Repository', icon: Microscope },
     { href: '/admin/decision-logs', label: 'Decision Logs', icon: Database },
     { href: '/admin/scrollytelling', label: 'Scrollytelling Reports', icon: FileText },
@@ -28,7 +29,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav className="space-y-2 flex-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            // For Dashboard, exact match. For others, startsWith to handle subpages
+            const isActive = item.href === '/admin'
+              ? pathname === item.href
+              : pathname.startsWith(item.href);
 
             return (
               <Link
