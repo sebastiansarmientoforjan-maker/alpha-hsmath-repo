@@ -471,6 +471,13 @@ export default function StakeholdersPage() {
                   {linkedInvestigations.map((inv) => (
                     <div key={inv.id} className="border-4 border-dark bg-bg-light p-6">
                       <h4 className="text-xl font-bold text-dark mb-4">{inv.title}</h4>
+
+                      {inv.description && (
+                        <div className="mb-4 pb-4 border-b-2 border-dark">
+                          <p className="text-dark font-serif">{inv.description}</p>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm font-bold text-dark/60 uppercase tracking-wide mb-1">Research Type</p>
@@ -486,10 +493,16 @@ export default function StakeholdersPage() {
                             <p className="text-dark">{inv.impactMetrics}</p>
                           </div>
                         )}
-                        {inv.hypothesis && (
+                        {inv.keyFindings && (
                           <div className="md:col-span-2">
-                            <p className="text-sm font-bold text-dark/60 uppercase tracking-wide mb-1">Hypothesis</p>
-                            <p className="text-dark font-serif">{inv.hypothesis}</p>
+                            <p className="text-sm font-bold text-dark/60 uppercase tracking-wide mb-1">Key Findings</p>
+                            <p className="text-dark font-serif">{inv.keyFindings}</p>
+                          </div>
+                        )}
+                        {inv.methodology && (
+                          <div className="md:col-span-2">
+                            <p className="text-sm font-bold text-dark/60 uppercase tracking-wide mb-1">Methodology</p>
+                            <p className="text-dark font-serif">{inv.methodology}</p>
                           </div>
                         )}
                       </div>
