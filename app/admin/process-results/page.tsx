@@ -10,7 +10,7 @@ import { Timestamp } from 'firebase/firestore';
 export default function ProcessResultsPage() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeEngine, setActiveEngine] = useState<'gemini' | 'perplexity'>('gemini');
+  const [activeEngine, setActiveEngine] = useState<'gemini' | 'perplexity' | 'both'>('both');
   const [resultsText, setResultsText] = useState('');
   const [processing, setProcessing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -126,7 +126,12 @@ export default function ProcessResultsPage() {
         citations = extractCitationsFromResults(resultsText);
         keyFindings = extractKeyFindings(resultsText);
         sourceCount = (resultsText.match(/\d+\./g) || []).length;
-        methodology = `Research conducted using ${activeEngine === 'gemini' ? 'Gemini Deep Research' : 'Perplexity AI'}.${searchQuery ? `\n\nOriginal Query: "${searchQuery}"` : ''}\n\nFull results captured in key findings section.`;
+        const engineText = activeEngine === 'gemini'
+          ? 'Gemini Deep Research'
+          : activeEngine === 'perplexity'
+          ? 'Perplexity AI'
+          : 'Gemini Deep Research and Perplexity AI (combined analysis)';
+        methodology = `Research conducted using ${engineText}.${searchQuery ? `\n\nOriginal Query: "${searchQuery}"` : ''}\n\nFull results captured in key findings section.`;
         impactMetrics = `${sourceCount} sources analyzed`;
       }
 
@@ -185,9 +190,10 @@ export default function ProcessResultsPage() {
       <BrutalCard className="mb-6 border-cool-blue bg-cool-blue/10">
         <h2 className="text-lg font-bold text-dark mb-3">📝 How to Use:</h2>
         <ol className="text-sm text-dark/70 space-y-2 list-decimal list-inside">
-          <li>Paste the COMPLETE results from Gemini or Perplexity including Source Reliability Matrix and citations</li>
+          <li>Paste the COMPLETE results from Gemini, Perplexity, or BOTH including Source Reliability Matrix and citations</li>
+          <li>If using both engines, separate them with clear headers in the same textarea</li>
           <li>Optionally enter your original search query (helps with metadata)</li>
-          <li>Select the AI engine you used</li>
+          <li>Select which AI engine(s) you used</li>
           <li>Click <strong>"Process with Claude"</strong> to automatically synthesize findings</li>
           <li>Review and edit the processed results</li>
           <li>Fill in investigation metadata</li>
@@ -213,29 +219,45 @@ export default function ProcessResultsPage() {
       {/* AI Engine Selection */}
       <BrutalCard className="mb-6">
         <h2 className="text-xl font-bold text-dark mb-4">2. AI Engine Used</h2>
-        <div className="flex gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <button
             onClick={() => setActiveEngine('gemini')}
-            className={`flex-1 px-6 py-4 border-4 border-dark font-bold transition-all ${
+            className={`px-6 py-4 border-4 border-dark font-bold transition-all ${
               activeEngine === 'gemini'
                 ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
                 : 'bg-white text-dark hover:bg-bg-light'
             }`}
           >
             <Sparkles size={20} className="inline mr-2" />
-            Gemini Deep Research
+            Gemini Only
           </button>
           <button
             onClick={() => setActiveEngine('perplexity')}
-            className={`flex-1 px-6 py-4 border-4 border-dark font-bold transition-all ${
+            className={`px-6 py-4 border-4 border-dark font-bold transition-all ${
               activeEngine === 'perplexity'
                 ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
                 : 'bg-white text-dark hover:bg-bg-light'
             }`}
           >
-            Perplexity AI
+            Perplexity Only
+          </button>
+          <button
+            onClick={() => setActiveEngine('both')}
+            className={`px-6 py-4 border-4 border-dark font-bold transition-all ${
+              activeEngine === 'both'
+                ? 'bg-alert-orange text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
+                : 'bg-white text-dark hover:bg-bg-light'
+            }`}
+          >
+            <Sparkles size={20} className="inline mr-2" />
+            Both / Ambas
           </button>
         </div>
+        {activeEngine === 'both' && (
+          <p className="text-xs text-dark/70 mt-3 p-3 border-2 border-alert-orange bg-alert-orange/10">
+            💡 <strong>Tip:</strong> Paste results from both engines in the same textarea. Separate them with clear headers like "=== GEMINI RESULTS ===" and "=== PERPLEXITY RESULTS ==="
+          </p>
+        )}
       </BrutalCard>
 
       {/* Results Textarea */}
@@ -252,7 +274,7 @@ export default function ProcessResultsPage() {
 - All citations and references
 - Methodology notes
 
-Example:
+Example (single engine):
 # Key Findings
 Research demonstrates that...
 
@@ -260,6 +282,12 @@ Research demonstrates that...
 | Source | Score |
 | [Paper 1](url) | 8.5 |
 
+Example (both engines):
+=== GEMINI DEEP RESEARCH RESULTS ===
+[Gemini findings here...]
+
+=== PERPLEXITY AI RESULTS ===
+[Perplexity findings here...]
 "
         />
         <div className="flex items-center justify-between mt-2">
