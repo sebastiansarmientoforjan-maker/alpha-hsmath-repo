@@ -215,16 +215,26 @@ export default function ProcessResultsPage() {
     }
   };
 
-  const extractTopicsFromKeyFindings = (keyFindings: string): string[] => {
+  const extractTopicsFromKeyFindings = (keyFindings: string | any): string[] => {
     const topics: string[] = [];
 
-    // Validate input
-    if (!keyFindings || typeof keyFindings !== 'string') {
-      console.error('keyFindings is not a valid string:', keyFindings);
+    // Convert to string if it's an array (legacy data format)
+    let keyFindingsStr: string;
+    if (Array.isArray(keyFindings)) {
+      console.log('Converting keyFindings from array to string');
+      keyFindingsStr = keyFindings.join('\n');
+    } else if (typeof keyFindings === 'string') {
+      keyFindingsStr = keyFindings;
+    } else {
+      console.error('keyFindings is not a valid string or array:', keyFindings);
       return [];
     }
 
-    const lines = keyFindings.split('\n');
+    if (!keyFindingsStr) {
+      return [];
+    }
+
+    const lines = keyFindingsStr.split('\n');
 
     for (const line of lines) {
       const match = line.match(/^[•\-\*]\s*(?:\[[\w\s]+\])?\s*(.+?)(?::|$)/);
@@ -246,16 +256,23 @@ export default function ProcessResultsPage() {
   const handleCreateCollectionFromSuccess = async () => {
     if (!savedInvestigationId || !user) return;
 
-    if (!savedKeyFindings || typeof savedKeyFindings !== 'string') {
-      alert('Key findings are missing or invalid. Cannot create collection.');
-      console.error('Invalid savedKeyFindings:', savedKeyFindings);
+    if (!savedKeyFindings) {
+      alert('Key findings are missing. Cannot create collection.');
+      console.error('Missing savedKeyFindings:', savedKeyFindings);
+      return;
+    }
+
+    // Accept both string and array formats (for backward compatibility)
+    if (typeof savedKeyFindings !== 'string' && !Array.isArray(savedKeyFindings)) {
+      alert('Key findings have invalid format. Cannot create collection.');
+      console.error('Invalid savedKeyFindings format:', savedKeyFindings);
       return;
     }
 
     try {
       setCreatingCollection(true);
 
-      // Get key findings from saved state
+      // Get key findings from saved state (handles both string and array)
       const topics = extractTopicsFromKeyFindings(savedKeyFindings);
 
       if (topics.length === 0) {

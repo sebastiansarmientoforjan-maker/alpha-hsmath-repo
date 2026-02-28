@@ -89,16 +89,26 @@ export default function ResearchRepositoryAdmin() {
     }
   };
 
-  const extractTopicsFromKeyFindings = (keyFindings: string): string[] => {
+  const extractTopicsFromKeyFindings = (keyFindings: string | any): string[] => {
     const topics: string[] = [];
 
-    // Validate input
-    if (!keyFindings || typeof keyFindings !== 'string') {
-      console.error('keyFindings is not a valid string:', keyFindings);
+    // Convert to string if it's an array (legacy data format)
+    let keyFindingsStr: string;
+    if (Array.isArray(keyFindings)) {
+      console.log('Converting keyFindings from array to string');
+      keyFindingsStr = keyFindings.join('\n');
+    } else if (typeof keyFindings === 'string') {
+      keyFindingsStr = keyFindings;
+    } else {
+      console.error('keyFindings is not a valid string or array:', keyFindings);
       return [];
     }
 
-    const lines = keyFindings.split('\n');
+    if (!keyFindingsStr) {
+      return [];
+    }
+
+    const lines = keyFindingsStr.split('\n');
 
     for (const line of lines) {
       // Match lines with bullet points and category tags like "• [PEDAGOGY] Finding Title:"
@@ -119,7 +129,7 @@ export default function ResearchRepositoryAdmin() {
 
     // If no topics found, split by paragraphs and use first sentence of each
     if (topics.length === 0) {
-      const paragraphs = keyFindings.split('\n\n').filter(p => p.trim());
+      const paragraphs = keyFindingsStr.split('\n\n').filter(p => p.trim());
       for (const paragraph of paragraphs.slice(0, 7)) {
         const firstSentence = paragraph.split(/[.!?]/)[0].trim();
         if (firstSentence && firstSentence.length > 10) {
@@ -145,15 +155,22 @@ export default function ResearchRepositoryAdmin() {
       return;
     }
 
-    if (!investigation.keyFindings || typeof investigation.keyFindings !== 'string') {
-      alert('This investigation has invalid or missing key findings. Cannot create collection.');
-      console.error('Invalid keyFindings:', investigation.keyFindings);
+    if (!investigation.keyFindings) {
+      alert('This investigation has missing key findings. Cannot create collection.');
+      console.error('Missing keyFindings:', investigation.keyFindings);
+      return;
+    }
+
+    // Accept both string and array formats (for backward compatibility)
+    if (typeof investigation.keyFindings !== 'string' && !Array.isArray(investigation.keyFindings)) {
+      alert('This investigation has invalid key findings format. Cannot create collection.');
+      console.error('Invalid keyFindings format:', investigation.keyFindings);
       return;
     }
 
     setCreatingCollection(true);
     try {
-      // Extract topics from key findings
+      // Extract topics from key findings (handles both string and array)
       const topicTitles = extractTopicsFromKeyFindings(investigation.keyFindings);
 
       if (topicTitles.length === 0) {
