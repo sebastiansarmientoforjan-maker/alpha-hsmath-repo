@@ -15,6 +15,7 @@ export default function ProcessResultsPage() {
   const [processing, setProcessing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [processedData, setProcessedData] = useState<{
+    description: string;
     keyFindings: string;
     methodology: string;
     impactMetrics: string;
@@ -52,6 +53,14 @@ export default function ProcessResultsPage() {
       }
 
       setProcessedData(data.processed);
+
+      // Auto-fill investigation metadata with processed data
+      setInvestigationData(prev => ({
+        ...prev,
+        description: data.processed.description || data.processed.keyFindings.split('\n\n')[0],
+        // Keep title and other fields as they were
+      }));
+
       alert('✅ Results processed successfully! Review and edit below before saving.');
     } catch (error) {
       console.error('Error processing with Claude:', error);
@@ -117,6 +126,7 @@ export default function ProcessResultsPage() {
       let keyFindings, methodology, impactMetrics, citations, sourceCount;
 
       if (processedData) {
+        // Use Claude-processed data
         keyFindings = processedData.keyFindings;
         methodology = processedData.methodology;
         impactMetrics = processedData.impactMetrics;
@@ -376,6 +386,49 @@ Example (both engines):
       {/* Investigation Metadata */}
       <BrutalCard className="mb-6">
         <h2 className="text-xl font-bold text-dark mb-4">4. Investigation Metadata</h2>
+
+        {processedData && (
+          <div className="mb-6 p-4 border-2 border-cool-blue bg-cool-blue/5">
+            <h3 className="text-sm font-bold text-dark mb-3">📋 Preview: How this will appear in Research Repository</h3>
+            <div className="space-y-4 text-sm">
+              <div>
+                <div className="font-bold text-dark mb-1">Description</div>
+                <p className="text-dark/80">{processedData.description || processedData.keyFindings.split('\n\n')[0]}</p>
+              </div>
+              <div>
+                <div className="font-bold text-dark mb-1">Key Findings</div>
+                <div className="text-dark/80 whitespace-pre-line font-serif">{processedData.keyFindings}</div>
+              </div>
+              <div>
+                <div className="font-bold text-dark mb-1">Methodology</div>
+                <p className="text-dark/80 font-serif">{processedData.methodology}</p>
+              </div>
+              <div>
+                <div className="font-bold text-dark mb-1">Impact Metrics</div>
+                <p className="text-dark/80">{processedData.impactMetrics}</p>
+              </div>
+              {processedData.citations.length > 0 && (
+                <div>
+                  <div className="font-bold text-dark mb-1">Key Citations ({processedData.citations.length})</div>
+                  <div className="space-y-1">
+                    {processedData.citations.slice(0, 5).map((cit, i) => (
+                      <div key={i} className="text-xs text-dark/70">
+                        {i + 1}. {cit.title}
+                        {cit.authors && (
+                          <span className="text-dark/50"> — {cit.authors}</span>
+                        )}
+                      </div>
+                    ))}
+                    {processedData.citations.length > 5 && (
+                      <div className="text-xs text-dark/60">... and {processedData.citations.length - 5} more</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-bold text-dark mb-2">

@@ -12,47 +12,44 @@ const client = new BedrockRuntimeClient({
   },
 });
 
-const PROCESSING_PROMPT = `You are an expert research synthesizer. Your task is to transform raw research results into a polished, narrative-style research investigation.
+const PROCESSING_PROMPT = `You are an expert research synthesizer. Your task is to transform raw research results into a polished, structured research investigation.
 
 OBJECTIVES:
-1. Create a coherent, flowing narrative from the source material
-2. Preserve ALL citations and references exactly as provided
-3. Extract and organize key findings naturally
-4. Maintain academic rigor while being readable
-5. Structure information logically
+1. Extract a clear executive summary as the description
+2. Organize key findings with categorical tags
+3. Preserve ALL citations with proper attribution
+4. Provide clear methodology and impact metrics
+5. Maintain academic rigor while being readable
 
 OUTPUT FORMAT:
 Return a JSON object with these exact fields:
 
 {
-  "keyFindings": "A well-structured narrative of 3-5 paragraphs that naturally flows. Include key discoveries, patterns, and insights. Integrate citations naturally using markdown format [Source Title](URL). Make it read like a professional research summary, not bullet points.",
+  "description": "A single, detailed paragraph (150-250 words) providing an executive summary of the investigation. Explain what the study is about, the main question/problem addressed, the approach taken, and the primary conclusion. Be comprehensive yet concise. Example: 'A detailed psychometric analysis defining the transition from a competence score (650) to a mastery score (800) on the Digital SAT...'",
 
-  "methodology": "A clear description of how the research was conducted. Include search strategy, databases used, selection criteria, and analytical approach. 2-3 paragraphs.",
+  "keyFindings": "Structured bullet list of 4-6 key findings. Each bullet must start with a categorical tag in brackets like [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY], or [TECHNOLOGY]. After the tag, provide a clear finding title followed by a colon, then a detailed explanation. Include inline citations using [cite: number] format. Format:\n• [TAG] Finding Title: Detailed explanation with evidence [cite: 5, 12].\n• [TAG] Another Finding: More details [cite: 23].\n\nExample:\n• [PEDAGOGY] Structural Fluency vs. Procedural Utility: Level 650 students rely on linear algorithms, while Level 800 students utilize 'conceptual shortcuts' and pattern recognition [cite: 10, 36].\n• [HARD DATA] The Desmos Gap: Strategic use of Desmos is a key differentiator [cite: 166, 170].",
 
-  "impactMetrics": "Quantitative summary: 'X sources analyzed across Y databases, Z key findings identified' or similar concise metrics.",
+  "methodology": "2-3 paragraph description of how the research was conducted. Include: search strategy, databases/sources used, selection criteria, analytical approach, and any weighting or prioritization methods. Be specific about sources. Example: 'Weighted source audit (Recency 50%, Type 30%, Authority 20%) applied to College Board specifications, official Desmos documentation, and Khan Academy pedagogy...'",
+
+  "impactMetrics": "Concise summary (1-3 sentences) of quantifiable impact or key takeaways. Focus on practical outcomes, cognitive shifts, or strategic advantages identified. Example: 'Defines the specific cognitive sub-skills required to bridge the 650-800 gap. Identifies Technological Arbitrage via Desmos as a primary efficiency driver.'",
 
   "citations": [
     {
       "title": "Exact paper/source title",
       "url": "Full URL",
-      "authors": "Author names if available"
+      "authors": "Author names or organization if available"
     }
   ]
 }
 
 GUIDELINES:
-- Write in clear, professional academic English
-- Use transition words to connect ideas
-- Integrate citations naturally: "Research by [Smith et al.](url) demonstrates..."
-- Group related findings together
-- Highlight contradictions or gaps if present
-- Make it engaging and informative
-- Preserve all source information exactly
-- Be comprehensive but concise
-
-EXAMPLE INTEGRATION:
-Bad: "Finding 1: X is true. [Citation]. Finding 2: Y is true. [Citation]."
-Good: "Research demonstrates that X is a critical factor in learning outcomes [Smith, 2024](url). This finding is further supported by recent meta-analyses showing Y across diverse contexts [Johnson et al., 2023](url), suggesting a robust cross-cultural pattern."`;
+- Description: Write as a single flowing paragraph, not bullets
+- Key Findings: Use categorical tags consistently, maintain parallel structure, include cite numbers
+- Methodology: Be specific about sources and methods, avoid vague language
+- Impact Metrics: Focus on actionable insights and measurable outcomes
+- Citations: Extract every unique source mentioned in the raw results
+- Preserve all source information exactly as provided
+- Use professional academic tone throughout`;
 
 export async function POST(request: NextRequest) {
   try {
