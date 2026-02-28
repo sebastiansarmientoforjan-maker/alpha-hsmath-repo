@@ -217,6 +217,13 @@ export default function ProcessResultsPage() {
 
   const extractTopicsFromKeyFindings = (keyFindings: string): string[] => {
     const topics: string[] = [];
+
+    // Validate input
+    if (!keyFindings || typeof keyFindings !== 'string') {
+      console.error('keyFindings is not a valid string:', keyFindings);
+      return [];
+    }
+
     const lines = keyFindings.split('\n');
 
     for (const line of lines) {
@@ -238,6 +245,12 @@ export default function ProcessResultsPage() {
 
   const handleCreateCollectionFromSuccess = async () => {
     if (!savedInvestigationId || !user) return;
+
+    if (!savedKeyFindings || typeof savedKeyFindings !== 'string') {
+      alert('Key findings are missing or invalid. Cannot create collection.');
+      console.error('Invalid savedKeyFindings:', savedKeyFindings);
+      return;
+    }
 
     try {
       setCreatingCollection(true);

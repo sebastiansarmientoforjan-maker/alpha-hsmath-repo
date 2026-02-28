@@ -91,6 +91,13 @@ export default function ResearchRepositoryAdmin() {
 
   const extractTopicsFromKeyFindings = (keyFindings: string): string[] => {
     const topics: string[] = [];
+
+    // Validate input
+    if (!keyFindings || typeof keyFindings !== 'string') {
+      console.error('keyFindings is not a valid string:', keyFindings);
+      return [];
+    }
+
     const lines = keyFindings.split('\n');
 
     for (const line of lines) {
@@ -138,13 +145,21 @@ export default function ResearchRepositoryAdmin() {
       return;
     }
 
+    if (!investigation.keyFindings || typeof investigation.keyFindings !== 'string') {
+      alert('This investigation has invalid or missing key findings. Cannot create collection.');
+      console.error('Invalid keyFindings:', investigation.keyFindings);
+      return;
+    }
+
     setCreatingCollection(true);
     try {
       // Extract topics from key findings
       const topicTitles = extractTopicsFromKeyFindings(investigation.keyFindings);
 
       if (topicTitles.length === 0) {
-        alert('No topics could be extracted from the key findings. Please add topics manually.');
+        alert('No topics could be extracted from the key findings. The key findings may not be formatted correctly.');
+        setCreatingCollection(false);
+        return;
       }
 
       // Create collection
