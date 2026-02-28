@@ -1,11 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { FileText, Database, Home, Microscope, ArrowLeft, Users, Sparkles, Archive } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { FileText, Database, Home, Microscope, ArrowLeft, Users, Sparkles, Archive, AlertTriangle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useEffect } from 'react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading, isAdmin } = useAuth();
+
+  // Redirect non-admin users to stakeholders
+  useEffect(() => {
+    if (!loading && user && !isAdmin) {
+      router.push('/stakeholders');
+    }
+  }, [loading, user, isAdmin, router]);
 
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: Home },
@@ -15,6 +26,49 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/decision-logs', label: 'Decision Logs', icon: Database },
     { href: '/admin/scrollytelling', label: 'Scrollytelling Reports', icon: FileText },
   ];
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-bg-light flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-dark/60 mb-2">Verifying permissions...</div>
+          <div className="text-sm text-dark/40">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect non-authenticated users
+  if (!user) {
+    router.push('/');
+    return null;
+  }
+
+  // Show access denied for non-admin users (while redirecting)
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-bg-light flex items-center justify-center p-6">
+        <div className="max-w-md w-full border-4 border-alert-orange bg-white p-8">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 border-4 border-dark bg-alert-orange">
+              <AlertTriangle size={32} className="text-dark" />
+            </div>
+            <h1 className="text-2xl font-bold text-dark">Access Denied</h1>
+          </div>
+          <p className="text-dark/80 mb-4">
+            You don't have permission to access the admin panel.
+          </p>
+          <p className="text-dark/60 text-sm mb-6">
+            Only administrators can access this area. You'll be redirected to the stakeholder portal.
+          </p>
+          <div className="text-xs text-dark/40">
+            Signed in as: <strong>{user.email}</strong>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bg-light flex">
