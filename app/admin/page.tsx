@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { BrutalCard } from '@/components/ui';
-import { FileText, Database, TrendingUp, AlertTriangle, BarChart3, Microscope } from 'lucide-react';
+import { FileText, Database, TrendingUp, AlertTriangle, BarChart3, Microscope, Sparkles, Wand2, Clock, ArrowRight } from 'lucide-react';
 import { getAllReports } from '@/lib/scrollytellingReports';
 import { getAllDecisionLogs } from '@/lib/decisionLogs';
-import { getAllInvestigations } from '@/lib/investigations';
+import { getAllInvestigations, Investigation } from '@/lib/investigations';
 import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
 
 export default function AdminDashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -16,6 +17,7 @@ export default function AdminDashboard() {
   const [activeDebates, setActiveDebates] = useState(0);
   const [orphanedReports, setOrphanedReports] = useState(0);
   const [reportsPerDecision, setReportsPerDecision] = useState(0);
+  const [recentInvestigations, setRecentInvestigations] = useState<Investigation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +43,9 @@ export default function AdminDashboard() {
       setTotalReports(reports.length);
       setTotalDecisionLogs(logs.length);
       setTotalInvestigations(investigations.length);
+
+      // Get 3 most recent investigations
+      setRecentInvestigations(investigations.slice(0, 3));
 
       // Count active debates
       const debates = logs.filter((log) => log.status === 'Under Debate').length;
@@ -189,38 +194,100 @@ export default function AdminDashboard() {
         </>
       ) : null}
 
-      <BrutalCard>
-        <h2 className="text-xl font-bold text-dark mb-4">Quick Start Guide</h2>
-        <div className="space-y-3 font-serif text-dark/80">
-          <p>
-            <strong className="text-dark">1. Configure Firebase:</strong> Copy{' '}
-            <code className="bg-bg-light px-2 py-1 border-2 border-dark">
-              .env.local.example
-            </code>{' '}
-            to{' '}
-            <code className="bg-bg-light px-2 py-1 border-2 border-dark">
-              .env.local
-            </code>{' '}
-            and add your Firebase credentials.
-          </p>
-          <p>
-            <strong className="text-dark">2. Document Investigations:</strong> Use the Research Repository
-            to track learning pattern analysis, content development, and pedagogical innovations.
-          </p>
-          <p>
-            <strong className="text-dark">3. Upload Reports:</strong> Associate Scrollytelling Reports
-            with investigations (as evidence) or with decisions (as their own documentation).
-          </p>
-          <p>
-            <strong className="text-dark">4. Make Decisions:</strong> Create Decision Logs and link them
-            to relevant investigations. Add school context for decisions based on student cases.
-          </p>
-          <p>
-            <strong className="text-dark">5. Share Results:</strong> Published reports appear in the
-            Stakeholder Portal where authorized viewers can explore decisions and leave comments.
-          </p>
+      {/* Quick Actions */}
+      <BrutalCard className="mb-8">
+        <h2 className="text-xl font-bold text-dark mb-4">⚡ Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Link
+            href="/admin/gem-generator"
+            className="flex items-center gap-3 p-4 border-4 border-dark bg-cool-blue hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all group"
+          >
+            <Sparkles size={24} className="text-dark" />
+            <div className="flex-1">
+              <div className="font-bold text-dark">Generate GEM Prompt</div>
+              <div className="text-sm text-dark/70">Create AI-powered guidance</div>
+            </div>
+            <ArrowRight size={20} className="text-dark opacity-0 group-hover:opacity-100 transition-opacity" />
+          </Link>
+
+          <Link
+            href="/admin/process-results"
+            className="flex items-center gap-3 p-4 border-4 border-dark bg-alert-orange hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all group"
+          >
+            <Wand2 size={24} className="text-dark" />
+            <div className="flex-1">
+              <div className="font-bold text-dark">Process AI Results</div>
+              <div className="text-sm text-dark/70">Convert to investigation</div>
+            </div>
+            <ArrowRight size={20} className="text-dark opacity-0 group-hover:opacity-100 transition-opacity" />
+          </Link>
+
+          <Link
+            href="/admin/research"
+            className="flex items-center gap-3 p-4 border-4 border-dark bg-white hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all group"
+          >
+            <Microscope size={24} className="text-dark" />
+            <div className="flex-1">
+              <div className="font-bold text-dark">View Research</div>
+              <div className="text-sm text-dark/70">Browse all investigations</div>
+            </div>
+            <ArrowRight size={20} className="text-dark opacity-0 group-hover:opacity-100 transition-opacity" />
+          </Link>
         </div>
       </BrutalCard>
+
+      {/* Recent Investigations */}
+      {recentInvestigations.length > 0 && (
+        <BrutalCard>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-dark flex items-center gap-2">
+              <Clock size={24} />
+              Recent Investigations
+            </h2>
+            <Link
+              href="/admin/research"
+              className="text-sm text-dark/70 hover:text-dark font-medium"
+            >
+              View all →
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {recentInvestigations.map((inv) => (
+              <div
+                key={inv.id}
+                className="p-4 border-2 border-dark bg-bg-light hover:bg-white transition-colors"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <h3 className="font-bold text-dark mb-1">{inv.title}</h3>
+                    <p className="text-sm text-dark/70 mb-2 line-clamp-2">
+                      {inv.description}
+                    </p>
+                    <div className="flex items-center gap-4 text-xs text-dark/60">
+                      <span className="font-medium">{inv.researchType}</span>
+                      <span>•</span>
+                      <span>{inv.mathematicalArea}</span>
+                      <span>•</span>
+                      <span>{inv.author}</span>
+                    </div>
+                  </div>
+                  <div
+                    className={`px-3 py-1 border-2 border-dark text-xs font-bold ${
+                      inv.status === 'Completed'
+                        ? 'bg-cool-blue'
+                        : inv.status === 'Published'
+                        ? 'bg-alert-orange'
+                        : 'bg-white'
+                    }`}
+                  >
+                    {inv.status}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </BrutalCard>
+      )}
     </div>
   );
 }

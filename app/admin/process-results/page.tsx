@@ -34,11 +34,6 @@ export default function ProcessResultsPage() {
       return;
     }
 
-    if (!searchQuery.trim()) {
-      alert('Please enter the original search query.');
-      return;
-    }
-
     setProcessing(true);
     try {
       const response = await fetch('/api/process-research-results', {
@@ -131,7 +126,7 @@ export default function ProcessResultsPage() {
         citations = extractCitationsFromResults(resultsText);
         keyFindings = extractKeyFindings(resultsText);
         sourceCount = (resultsText.match(/\d+\./g) || []).length;
-        methodology = `Research conducted using ${activeEngine === 'gemini' ? 'Gemini Deep Research' : 'Perplexity AI'}.\n\nOriginal Query: "${searchQuery}"\n\nFull results captured in key findings section.`;
+        methodology = `Research conducted using ${activeEngine === 'gemini' ? 'Gemini Deep Research' : 'Perplexity AI'}.${searchQuery ? `\n\nOriginal Query: "${searchQuery}"` : ''}\n\nFull results captured in key findings section.`;
         impactMetrics = `${sourceCount} sources analyzed`;
       }
 
@@ -147,7 +142,7 @@ export default function ProcessResultsPage() {
         author: investigationData.author,
         startDate: Timestamp.now(),
         completionDate: Timestamp.now(),
-        searchKeywords: searchQuery.split(/[,\s]+/).filter(k => k.trim()),
+        searchKeywords: searchQuery ? searchQuery.split(/[,\s]+/).filter(k => k.trim()) : investigationData.title.split(/[,\s]+/).filter(k => k.trim()).slice(0, 5),
         databases: ['Google Scholar', 'ERIC', 'ResearchGate', 'Semantic Scholar', 'Academic Sources'],
         paperCount: sourceCount,
         citationLinks: citations.length > 0 ? citations : undefined,
@@ -190,9 +185,9 @@ export default function ProcessResultsPage() {
       <BrutalCard className="mb-6 border-cool-blue bg-cool-blue/10">
         <h2 className="text-lg font-bold text-dark mb-3">📝 How to Use:</h2>
         <ol className="text-sm text-dark/70 space-y-2 list-decimal list-inside">
-          <li>Enter your original search query</li>
-          <li>Select the AI engine you used (Gemini or Perplexity)</li>
-          <li>Paste the COMPLETE results including Source Reliability Matrix and citations</li>
+          <li>Paste the COMPLETE results from Gemini or Perplexity including Source Reliability Matrix and citations</li>
+          <li>Optionally enter your original search query (helps with metadata)</li>
+          <li>Select the AI engine you used</li>
           <li>Click <strong>"Process with Claude"</strong> to automatically synthesize findings</li>
           <li>Review and edit the processed results</li>
           <li>Fill in investigation metadata</li>
@@ -200,9 +195,9 @@ export default function ProcessResultsPage() {
         </ol>
       </BrutalCard>
 
-      {/* Original Query */}
+      {/* Original Query - Optional */}
       <BrutalCard className="mb-6">
-        <h2 className="text-xl font-bold text-dark mb-4">1. Original Search Query</h2>
+        <h2 className="text-xl font-bold text-dark mb-4">1. Original Search Query <span className="text-sm font-normal text-dark/60">(Optional)</span></h2>
         <input
           type="text"
           value={searchQuery}
@@ -211,7 +206,7 @@ export default function ProcessResultsPage() {
           className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
         />
         <p className="text-xs text-dark/60 mt-2">
-          Enter the query you used to search in Gemini/Perplexity
+          If you remember the original query, it helps generate better metadata (keywords)
         </p>
       </BrutalCard>
 
@@ -273,7 +268,7 @@ Research demonstrates that...
           </p>
           <BrutalButton
             onClick={processWithClaude}
-            disabled={processing || !resultsText.trim() || !searchQuery.trim()}
+            disabled={processing || !resultsText.trim()}
             variant="primary"
             className="gap-2 bg-alert-orange border-alert-orange"
           >
