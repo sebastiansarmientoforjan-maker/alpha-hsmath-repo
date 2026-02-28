@@ -68,7 +68,8 @@ export default function ResearchRepositoryAdmin() {
         </p>
       </div>
 
-      <h2 className="text-2xl font-bold text-dark mb-4">All Investigations</h2>
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold text-dark">All Investigations</h2>
 
         {loadingInvestigations ? (
           <BrutalCard>
