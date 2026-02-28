@@ -209,10 +209,11 @@ export default function ProcessResultsPage() {
         await updateTopicInCollection(selectedCollectionId, selectedTopicId, {
           linkedInvestigationId: investigationId,
           linkedInvestigationTitle: investigationData.title,
-          status: 'in-progress', // Mark as in-progress when investigation is linked
+          status: 'completed', // Mark as completed when investigation is linked
+          completedAt: Timestamp.now(),
         } as any);
 
-        alert(`✅ Investigation saved and linked to topic!\n\nView it in Research Collections.`);
+        alert(`✅ Investigation saved and linked to topic!\n\nTopic marked as completed. View it in Research Collections.`);
 
         // Navigate to collections tab
         router.push('/admin/research?tab=collections');
@@ -639,7 +640,7 @@ Example (both engines):
                   <option value="">-- Select a topic --</option>
                   {collections
                     .find((c) => c.id === selectedCollectionId)
-                    ?.topics.filter((t) => t.status === 'pending') // Only show pending topics
+                    ?.topics.filter((t) => t.status === 'in-progress') // Only show in-progress topics
                     .map((topic) => (
                       <option key={topic.id} value={topic.id}>
                         {topic.title}
@@ -647,7 +648,7 @@ Example (both engines):
                     ))}
                 </select>
                 <p className="text-xs text-dark/60 mt-2">
-                  Only showing pending topics (not yet linked to an investigation)
+                  Only showing in-progress topics (ready to be researched)
                 </p>
               </div>
             )}
@@ -655,7 +656,7 @@ Example (both engines):
             {selectedCollectionId && selectedTopicId && (
               <div className="p-3 border-2 border-cool-blue bg-cool-blue/10">
                 <p className="text-sm text-dark">
-                  ✓ This investigation will be linked to the selected topic and marked as "in-progress"
+                  ✓ This investigation will be linked to the selected topic and marked as "completed"
                 </p>
               </div>
             )}
