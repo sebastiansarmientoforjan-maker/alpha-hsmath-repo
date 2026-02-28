@@ -25,6 +25,10 @@ OUTPUT FORMAT:
 Return a JSON object with these exact fields:
 
 {
+  "suggestedTitle": "A clear, concise title (5-10 words) that captures the main focus of the investigation. Examples: 'Digital SAT Math: 650 to 800 Score Gap Analysis', 'AP Calculus Performance Thresholds and Cognitive Fluencies', 'Structural Fluency in Advanced Algebra Learning'",
+
+  "suggestedMathArea": "One of these exact values: 'Elementary Arithmetic', 'Algebra', 'Geometry', 'Calculus', 'Statistics', 'Cross-Domain'. Choose the most appropriate based on the investigation content.",
+
   "description": "A single, detailed paragraph (150-250 words) providing an executive summary of the investigation. Explain what the study is about, the main question/problem addressed, the approach taken, and the primary conclusion. Be comprehensive yet concise. Example: 'A detailed psychometric analysis defining the transition from a competence score (650) to a mastery score (800) on the Digital SAT...'",
 
   "keyFindings": "Structured bullet list of 4-6 key findings. Each bullet must start with a categorical tag in brackets like [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY], or [TECHNOLOGY]. After the tag, provide a clear finding title followed by a colon, then a detailed explanation. Include inline citations using [cite: number] format. Format:\n• [TAG] Finding Title: Detailed explanation with evidence [cite: 5, 12].\n• [TAG] Another Finding: More details [cite: 23].\n\nExample:\n• [PEDAGOGY] Structural Fluency vs. Procedural Utility: Level 650 students rely on linear algorithms, while Level 800 students utilize 'conceptual shortcuts' and pattern recognition [cite: 10, 36].\n• [HARD DATA] The Desmos Gap: Strategic use of Desmos is a key differentiator [cite: 166, 170].",

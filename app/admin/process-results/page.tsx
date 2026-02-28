@@ -15,6 +15,8 @@ export default function ProcessResultsPage() {
   const [processing, setProcessing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [processedData, setProcessedData] = useState<{
+    suggestedTitle: string;
+    suggestedMathArea: string;
     description: string;
     keyFindings: string;
     methodology: string;
@@ -53,7 +55,14 @@ export default function ProcessResultsPage() {
 
       setProcessedData(data.processed);
 
-      alert('✅ Results processed successfully! Review and edit below before saving.');
+      // Auto-fill title and math area from Claude suggestions
+      setInvestigationData(prev => ({
+        ...prev,
+        title: data.processed.suggestedTitle || prev.title,
+        mathematicalArea: (data.processed.suggestedMathArea as MathematicalArea) || prev.mathematicalArea,
+      }));
+
+      alert('✅ Results processed successfully! Title and area auto-filled. Review and edit below before saving.');
     } catch (error) {
       console.error('Error processing with Claude:', error);
       alert('Failed to process results with Claude. Please try again.');
@@ -387,6 +396,14 @@ Example (both engines):
             <h3 className="text-sm font-bold text-dark mb-3">📋 Preview: How this will appear in Research Repository</h3>
             <div className="space-y-4 text-sm">
               <div>
+                <div className="font-bold text-dark mb-1">Title (Suggested by Claude)</div>
+                <p className="text-dark font-bold text-base">{processedData.suggestedTitle}</p>
+              </div>
+              <div>
+                <div className="font-bold text-dark mb-1">Mathematical Area (Suggested by Claude)</div>
+                <p className="text-dark">{processedData.suggestedMathArea}</p>
+              </div>
+              <div>
                 <div className="font-bold text-dark mb-1">Description</div>
                 <p className="text-dark/80">{processedData.description || processedData.keyFindings.split('\n\n')[0]}</p>
               </div>
@@ -427,7 +444,7 @@ Example (both engines):
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-bold text-dark mb-2">
-              Investigation Title *
+              Investigation Title * {processedData && <span className="text-xs font-normal text-dark/60">(Auto-filled by Claude)</span>}
             </label>
             <input
               type="text"
@@ -439,7 +456,9 @@ Example (both engines):
               placeholder="e.g., Adaptive Learning Pathways in Algebra"
             />
             <p className="text-xs text-dark/60 mt-2">
-              💡 The description will be generated automatically by Claude from your research results
+              {processedData
+                ? '✅ Title suggested by Claude - you can edit it if needed'
+                : '💡 Process with Claude first to auto-generate the title'}
             </p>
           </div>
 
@@ -469,7 +488,7 @@ Example (both engines):
 
             <div>
               <label className="block text-sm font-bold text-dark mb-2">
-                Mathematical Area *
+                Mathematical Area * {processedData && <span className="text-xs font-normal text-dark/60">(Auto-filled by Claude)</span>}
               </label>
               <select
                 value={investigationData.mathematicalArea}
