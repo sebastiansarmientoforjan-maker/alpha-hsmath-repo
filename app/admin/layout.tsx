@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { FileText, Database, Home, Microscope, ArrowLeft, Users, Sparkles, Archive } from 'lucide-react';
-import AuthDebug from '@/components/AuthDebug';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -73,9 +72,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main Content */}
       <main className="flex-1 p-8">{children}</main>
-
-      {/* Auth Debug Panel */}
-      <AuthDebug />
     </div>
   );
 }
