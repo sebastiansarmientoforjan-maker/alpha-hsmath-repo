@@ -49,6 +49,41 @@ export default function GemGenerator() {
     loadSavedPrompts();
   }, []);
 
+  // Auto-save draft to localStorage
+  useEffect(() => {
+    const draft = {
+      searchQuery,
+      generatedPrompts,
+      activeEngine,
+      timestamp: Date.now(),
+    };
+    if (searchQuery || generatedPrompts.gemini || generatedPrompts.perplexity) {
+      localStorage.setItem('gem-generator-draft', JSON.stringify(draft));
+    }
+  }, [searchQuery, generatedPrompts, activeEngine]);
+
+  // Restore draft from localStorage on mount
+  useEffect(() => {
+    const savedDraft = localStorage.getItem('gem-generator-draft');
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        // Only restore if less than 7 days old
+        const age = Date.now() - (draft.timestamp || 0);
+        if (age < 7 * 24 * 60 * 60 * 1000) {
+          setSearchQuery(draft.searchQuery || '');
+          setGeneratedPrompts(draft.generatedPrompts || { gemini: '', perplexity: '' });
+          setActiveEngine(draft.activeEngine || 'gemini');
+        } else {
+          // Clear old draft
+          localStorage.removeItem('gem-generator-draft');
+        }
+      } catch (error) {
+        console.error('Error restoring draft:', error);
+      }
+    }
+  }, []);
+
   const loadSavedPrompts = async () => {
     try {
       const prompts = await getAllGemPrompts();
@@ -101,6 +136,18 @@ export default function GemGenerator() {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${months[now.getMonth()]} ${now.getFullYear()}`;
   };
+
+  // Draft management
+  const clearDraft = () => {
+    if (confirm('Clear draft? This will remove your saved work.')) {
+      setSearchQuery('');
+      setGeneratedPrompts({ gemini: '', perplexity: '' });
+      setActiveEngine('gemini');
+      localStorage.removeItem('gem-generator-draft');
+    }
+  };
+
+  const hasDraft = searchQuery || generatedPrompts.gemini || generatedPrompts.perplexity;
 
   const generatePrompt = () => {
     // Reset saved state when generating new prompt
@@ -468,14 +515,33 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-dark mb-2 flex items-center gap-3">
-          <Sparkles size={36} className="text-alert-orange" />
-          GEM Generator
-        </h1>
-        <p className="text-dark/70">
-          Transform any research query into a Gemini Deep Research prompt with RLM architecture
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-dark mb-2 flex items-center gap-3">
+            <Sparkles size={36} className="text-alert-orange" />
+            GEM Generator
+          </h1>
+          <p className="text-dark/70">
+            Transform any research query into a Gemini Deep Research prompt with RLM architecture
+          </p>
+          {hasDraft && (
+            <div className="mt-3 flex items-center gap-2 text-sm">
+              <div className="px-3 py-1 border-2 border-cool-blue bg-cool-blue/10 text-dark font-medium">
+                💾 Draft auto-saved
+              </div>
+              <p className="text-dark/60">Your work is preserved while navigating</p>
+            </div>
+          )}
+        </div>
+        {hasDraft && (
+          <button
+            onClick={clearDraft}
+            className="px-6 py-3 border-4 border-dark bg-white text-dark font-bold hover:bg-alert-orange/20 hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all"
+            title="Clear draft and start fresh"
+          >
+            🗑️ Clear Draft
+          </button>
+        )}
       </div>
 
       {/* Search Bar */}
