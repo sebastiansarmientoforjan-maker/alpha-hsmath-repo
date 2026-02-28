@@ -23,7 +23,6 @@ export default function ProcessResultsPage() {
   } | null>(null);
   const [investigationData, setInvestigationData] = useState({
     title: '',
-    description: '',
     researchType: 'Systematic Literature Review' as ResearchType,
     mathematicalArea: 'Algebra' as MathematicalArea,
     author: user?.displayName || user?.email || '',
@@ -53,13 +52,6 @@ export default function ProcessResultsPage() {
       }
 
       setProcessedData(data.processed);
-
-      // Auto-fill investigation metadata with processed data
-      setInvestigationData(prev => ({
-        ...prev,
-        description: data.processed.description || data.processed.keyFindings.split('\n\n')[0],
-        // Keep title and other fields as they were
-      }));
 
       alert('✅ Results processed successfully! Review and edit below before saving.');
     } catch (error) {
@@ -145,9 +137,13 @@ export default function ProcessResultsPage() {
         impactMetrics = `${sourceCount} sources analyzed`;
       }
 
+      // Use Claude-generated description if available, otherwise create a basic one
+      const description = processedData?.description ||
+                         `Systematic literature review on ${investigationData.title}. ${keyFindings.substring(0, 200)}...`;
+
       await createInvestigation({
         title: investigationData.title,
-        description: investigationData.description || `Systematic literature review on ${searchQuery}`,
+        description: description,
         researchType: investigationData.researchType,
         mathematicalArea: investigationData.mathematicalArea,
         status: 'Completed',
@@ -171,7 +167,6 @@ export default function ProcessResultsPage() {
       setProcessedData(null);
       setInvestigationData({
         title: '',
-        description: '',
         researchType: 'Systematic Literature Review',
         mathematicalArea: 'Algebra',
         author: user?.displayName || user?.email || '',
@@ -443,21 +438,9 @@ Example (both engines):
               className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
               placeholder="e.g., Adaptive Learning Pathways in Algebra"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-dark mb-2">
-              Description (Optional)
-            </label>
-            <textarea
-              value={investigationData.description}
-              onChange={(e) =>
-                setInvestigationData({ ...investigationData, description: e.target.value })
-              }
-              rows={3}
-              className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
-              placeholder="Executive summary of the investigation..."
-            />
+            <p className="text-xs text-dark/60 mt-2">
+              💡 The description will be generated automatically by Claude from your research results
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
