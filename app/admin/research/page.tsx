@@ -169,12 +169,16 @@ export default function ResearchRepositoryAdmin() {
         createdBy: user.email || user.displayName || 'Unknown',
       });
 
-      alert(`✅ Research Collection created!\n\nYou can now add topics manually.`);
+      // Close investigation modal
+      setViewingInvestigation(null);
 
       // Switch to collections tab and load collections
       setActiveTab('collections');
       await loadCollections();
       setExpandedCollectionId(collectionId);
+
+      // Show success message
+      alert(`✅ Research Collection created!\n\nYou can now add topics manually.`);
     } catch (error) {
       console.error('Error creating research collection:', error);
       alert('Failed to create research collection. Please try again.');
