@@ -608,11 +608,18 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
               <h2 className="text-xl font-bold text-dark">
                 {activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} Optimized Prompt
               </h2>
-              {!user && (
-                <p className="text-xs text-dark/60 mt-1">
-                  ℹ️ Sign in required to save prompts
-                </p>
-              )}
+              <div className="flex items-center gap-3 mt-1">
+                {!user && (
+                  <p className="text-xs text-dark/60">
+                    ℹ️ Sign in required to save prompts
+                  </p>
+                )}
+                {getActivePrompt() && (
+                  <p className="text-xs text-dark/60">
+                    📏 {getActivePrompt().split('\n').length} lines • {getActivePrompt().length} characters
+                  </p>
+                )}
+              </div>
             </div>
             <div className="flex gap-2">
               <BrutalButton
@@ -669,8 +676,8 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
             </div>
           </div>
 
-          <div className="bg-bg-light border-4 border-dark p-4 font-mono text-sm max-h-96 overflow-auto">
-            <pre className="whitespace-pre-wrap text-dark">{getActivePrompt()}</pre>
+          <div className="bg-bg-light border-4 border-dark p-4 font-mono text-sm">
+            <pre className="whitespace-pre-wrap text-dark break-words">{getActivePrompt()}</pre>
           </div>
 
           <div className="mt-4 p-4 border-4 border-cool-blue bg-cool-blue/10">
@@ -1058,8 +1065,8 @@ The system will automatically extract:
                   <summary className="cursor-pointer text-sm font-bold text-dark uppercase mb-2 hover:text-cool-blue transition-colors">
                     View Full Prompt →
                   </summary>
-                  <div className="mt-2 bg-bg-light border-4 border-dark p-4 font-mono text-xs max-h-96 overflow-auto">
-                    <pre className="whitespace-pre-wrap text-dark">
+                  <div className="mt-2 bg-bg-light border-4 border-dark p-4 font-mono text-xs max-h-[600px] overflow-auto">
+                    <pre className="whitespace-pre-wrap text-dark break-words">
                       {prompt.promptContent}
                     </pre>
                   </div>
