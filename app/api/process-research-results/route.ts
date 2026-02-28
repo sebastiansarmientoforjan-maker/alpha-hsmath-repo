@@ -58,18 +58,15 @@ export async function POST(request: NextRequest) {
   try {
     const { resultsText, searchQuery } = await request.json();
 
-    if (!resultsText || !searchQuery) {
+    if (!resultsText) {
       return NextResponse.json(
-        { error: 'Missing resultsText or searchQuery' },
+        { error: 'Missing resultsText' },
         { status: 400 }
       );
     }
 
     const userPrompt = `# Research Results to Process
-
-## Original Search Query:
-"${searchQuery}"
-
+${searchQuery ? `\n## Original Search Query:\n"${searchQuery}"\n` : ''}
 ## Raw Research Results:
 ${resultsText}
 
