@@ -29,6 +29,7 @@ export default function ProcessResultsPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedInvestigationId, setSavedInvestigationId] = useState<string | null>(null);
   const [savedInvestigationTitle, setSavedInvestigationTitle] = useState<string>('');
+  const [savedKeyFindings, setSavedKeyFindings] = useState<string>('');
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [investigationData, setInvestigationData] = useState({
     title: '',
@@ -175,9 +176,10 @@ export default function ProcessResultsPage() {
         citationLinks: citations.length > 0 ? citations : undefined,
       });
 
-      // Save investigation details for success modal
+      // Save investigation details for success modal (before resetting)
       setSavedInvestigationId(investigationId);
       setSavedInvestigationTitle(investigationData.title);
+      setSavedKeyFindings(keyFindings); // Save keyFindings before reset
       setShowSuccessModal(true);
 
       // Reset form
@@ -240,12 +242,12 @@ export default function ProcessResultsPage() {
     try {
       setCreatingCollection(true);
 
-      // Get key findings from processed data
-      const keyFindings = processedData?.keyFindings || '';
-      const topics = extractTopicsFromKeyFindings(keyFindings);
+      // Get key findings from saved state
+      const topics = extractTopicsFromKeyFindings(savedKeyFindings);
 
       if (topics.length === 0) {
         alert('No topics found in key findings. Please ensure findings are formatted with bullet points.');
+        setCreatingCollection(false);
         return;
       }
 
