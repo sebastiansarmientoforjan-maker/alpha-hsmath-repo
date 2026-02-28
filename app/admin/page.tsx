@@ -6,8 +6,10 @@ import { FileText, Database, TrendingUp, AlertTriangle, BarChart3, Microscope } 
 import { getAllReports } from '@/lib/scrollytellingReports';
 import { getAllDecisionLogs } from '@/lib/decisionLogs';
 import { getAllInvestigations } from '@/lib/investigations';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AdminDashboard() {
+  const { user, loading: authLoading } = useAuth();
   const [totalReports, setTotalReports] = useState(0);
   const [totalDecisionLogs, setTotalDecisionLogs] = useState(0);
   const [totalInvestigations, setTotalInvestigations] = useState(0);
@@ -18,8 +20,14 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadStatistics();
-  }, []);
+    // Only load statistics when auth is ready and user is present
+    if (!authLoading && user) {
+      loadStatistics();
+    } else if (!authLoading && !user) {
+      setError('You must be signed in to view the dashboard.');
+      setLoading(false);
+    }
+  }, [authLoading, user]);
 
   const loadStatistics = async () => {
     try {
