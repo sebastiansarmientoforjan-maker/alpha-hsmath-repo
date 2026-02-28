@@ -59,6 +59,26 @@ export default function ResearchRepositoryAdmin() {
     }
   }, [searchParams]);
 
+  // Reload collections when switching to collections tab
+  useEffect(() => {
+    if (activeTab === 'collections') {
+      loadCollections();
+    }
+  }, [activeTab]);
+
+  // Reload collections when window regains focus (e.g., coming back from Process Results)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (activeTab === 'collections') {
+        console.log('Window focused, reloading collections...');
+        loadCollections();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [activeTab]);
+
   const loadInvestigations = async () => {
     setLoadingInvestigations(true);
     try {
@@ -189,9 +209,11 @@ export default function ResearchRepositoryAdmin() {
 
   // Collections functions
   const loadCollections = async () => {
+    console.log('Loading collections...');
     setLoadingCollections(true);
     try {
       const data = await getAllResearchCollections();
+      console.log('Collections loaded:', data.length, 'collections');
       setCollections(data);
     } catch (error) {
       console.error('Error loading collections:', error);

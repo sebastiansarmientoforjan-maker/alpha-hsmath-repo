@@ -206,6 +206,12 @@ export default function ProcessResultsPage() {
 
       // If associating to existing topic, update it
       if (associationType === 'existing' && selectedCollectionId && selectedTopicId) {
+        console.log('Updating topic to completed:', {
+          collectionId: selectedCollectionId,
+          topicId: selectedTopicId,
+          investigationId: investigationId,
+        });
+
         await updateTopicInCollection(selectedCollectionId, selectedTopicId, {
           linkedInvestigationId: investigationId,
           linkedInvestigationTitle: investigationData.title,
@@ -213,10 +219,18 @@ export default function ProcessResultsPage() {
           completedAt: Timestamp.now(),
         } as any);
 
-        alert(`✅ Investigation saved and linked to topic!\n\nTopic marked as completed. View it in Research Collections.`);
+        console.log('Topic updated successfully to completed');
+
+        // Wait a moment to ensure Firestore update is complete
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Navigate to collections tab
         router.push('/admin/research?tab=collections');
+
+        // Show success message after navigation
+        setTimeout(() => {
+          alert(`✅ Investigation saved and linked to topic!\n\nTopic marked as completed.`);
+        }, 100);
       } else {
         // Save investigation details for success modal (before resetting)
         setSavedInvestigationId(investigationId);
