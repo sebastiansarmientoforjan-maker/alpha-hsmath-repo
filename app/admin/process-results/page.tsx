@@ -2,13 +2,16 @@
 
 import { useState } from 'react';
 import { BrutalCard, BrutalButton } from '@/components/ui';
-import { Sparkles, Save, Wand2 } from 'lucide-react';
+import { Sparkles, Save, Wand2, ClipboardList, Eye } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createInvestigation, ResearchType, MathematicalArea } from '@/lib/investigations';
 import { Timestamp } from 'firebase/firestore';
+import { createResearchCollection, addTopicToCollection } from '@/lib/researchCollections';
+import { useRouter } from 'next/navigation';
 
 export default function ProcessResultsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeEngine, setActiveEngine] = useState<'gemini' | 'perplexity' | 'both'>('both');
   const [resultsText, setResultsText] = useState('');
@@ -23,6 +26,10 @@ export default function ProcessResultsPage() {
     impactMetrics: string;
     citations: Array<{ title: string; url: string; authors?: string }>;
   } | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [savedInvestigationId, setSavedInvestigationId] = useState<string | null>(null);
+  const [savedInvestigationTitle, setSavedInvestigationTitle] = useState<string>('');
+  const [creatingCollection, setCreatingCollection] = useState(false);
   const [investigationData, setInvestigationData] = useState({
     title: '',
     researchType: 'Systematic Literature Review' as ResearchType,
@@ -150,7 +157,7 @@ export default function ProcessResultsPage() {
       const description = processedData?.description ||
                          `Systematic literature review on ${investigationData.title}. ${keyFindings.substring(0, 200)}...`;
 
-      await createInvestigation({
+      const investigationId = await createInvestigation({
         title: investigationData.title,
         description: description,
         researchType: investigationData.researchType,
@@ -168,7 +175,10 @@ export default function ProcessResultsPage() {
         citationLinks: citations.length > 0 ? citations : undefined,
       });
 
-      alert('✅ Research Investigation created successfully!\n\nCheck Research Repository to view your investigation.');
+      // Save investigation details for success modal
+      setSavedInvestigationId(investigationId);
+      setSavedInvestigationTitle(investigationData.title);
+      setShowSuccessModal(true);
 
       // Reset form
       setResultsText('');
@@ -200,6 +210,72 @@ export default function ProcessResultsPage() {
         author: user?.displayName || user?.email || '',
       });
       setActiveEngine('both');
+    }
+  };
+
+  const extractTopicsFromKeyFindings = (keyFindings: string): string[] => {
+    const topics: string[] = [];
+    const lines = keyFindings.split('\n');
+
+    for (const line of lines) {
+      const match = line.match(/^[•\-\*]\s*(?:\[[\w\s]+\])?\s*(.+?)(?::|$)/);
+      if (match) {
+        let topic = match[1].trim();
+        topic = topic.replace(/^\[[\w\s]+\]\s*/, '');
+        if (topic.length > 100) {
+          topic = topic.substring(0, 97) + '...';
+        }
+        if (topic) {
+          topics.push(topic);
+        }
+      }
+    }
+
+    return topics.slice(0, 10);
+  };
+
+  const handleCreateCollectionFromSuccess = async () => {
+    if (!savedInvestigationId || !user) return;
+
+    try {
+      setCreatingCollection(true);
+
+      // Get key findings from processed data
+      const keyFindings = processedData?.keyFindings || '';
+      const topics = extractTopicsFromKeyFindings(keyFindings);
+
+      if (topics.length === 0) {
+        alert('No topics found in key findings. Please ensure findings are formatted with bullet points.');
+        return;
+      }
+
+      // Create the collection
+      const collectionId = await createResearchCollection({
+        title: `Research Collection: ${savedInvestigationTitle}`,
+        description: `Auto-generated collection from investigation: ${savedInvestigationTitle}`,
+        sourceInvestigationId: savedInvestigationId,
+        sourceInvestigationTitle: savedInvestigationTitle,
+        createdBy: user.displayName || user.email || 'Unknown',
+      });
+
+      // Add topics to collection
+      for (const topicTitle of topics) {
+        await addTopicToCollection(collectionId, {
+          title: topicTitle,
+          status: 'pending',
+          linkedInvestigationId: savedInvestigationId,
+          linkedInvestigationTitle: savedInvestigationTitle,
+        });
+      }
+
+      // Close modal and navigate to research planning
+      setShowSuccessModal(false);
+      router.push('/admin/research-planning');
+    } catch (error) {
+      console.error('Error creating collection:', error);
+      alert('Failed to create research collection. Please try again.');
+    } finally {
+      setCreatingCollection(false);
     }
   };
 
@@ -622,6 +698,80 @@ Example (both engines):
           </button>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-dark/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border-4 border-dark shadow-[8px_8px_0px_0px_rgba(18,18,18,1)] max-w-2xl w-full p-8 animate-fade-in">
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-4">✅</div>
+              <h2 className="text-3xl font-bold text-dark mb-2">Investigation Saved!</h2>
+              <p className="text-dark/70">
+                "{savedInvestigationTitle}" has been added to your Research Repository.
+              </p>
+            </div>
+
+            <div className="bg-cool-blue/10 border-4 border-cool-blue p-6 mb-6">
+              <h3 className="text-lg font-bold text-dark mb-3 flex items-center gap-2">
+                <ClipboardList size={24} />
+                Next Step: Create a Research Collection?
+              </h3>
+              <p className="text-sm text-dark/80 mb-4">
+                Would you like to create a Research Collection with topics from this investigation?
+                This helps you organize follow-up research and track progress on specific findings.
+              </p>
+              <ul className="text-sm text-dark/70 space-y-2 list-disc list-inside">
+                <li>Auto-extracts topics from Key Findings</li>
+                <li>Track research progress (pending → in-progress → completed)</li>
+                <li>Link each topic back to this investigation</li>
+                <li>Generate GEM prompts directly from topics</li>
+              </ul>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={handleCreateCollectionFromSuccess}
+                disabled={creatingCollection}
+                className={`flex items-center justify-center gap-3 px-6 py-4 border-4 border-dark font-bold text-base transition-all ${
+                  creatingCollection
+                    ? 'bg-gray-300 text-dark/40 cursor-not-allowed'
+                    : 'bg-alert-orange text-dark hover:shadow-[6px_6px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-3px] hover:translate-y-[-3px]'
+                }`}
+              >
+                {creatingCollection ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-4 border-dark border-t-transparent"></div>
+                    <span>Creating...</span>
+                  </>
+                ) : (
+                  <>
+                    <ClipboardList size={20} />
+                    <span>Create Collection</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  router.push('/admin/research');
+                }}
+                className="flex items-center justify-center gap-3 px-6 py-4 border-4 border-dark bg-white text-dark font-bold hover:bg-bg-light transition-all"
+              >
+                <Eye size={20} />
+                <span>View Investigation</span>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full mt-4 px-6 py-3 border-2 border-dark/20 bg-white text-dark/60 hover:text-dark hover:border-dark transition-all"
+            >
+              Skip for Now
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

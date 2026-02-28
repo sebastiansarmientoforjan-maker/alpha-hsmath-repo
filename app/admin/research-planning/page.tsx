@@ -15,7 +15,7 @@ import {
   TopicStatus,
 } from '@/lib/researchCollections';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Edit, Trash2, Check, Clock, Circle, Sparkles, ExternalLink, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Check, Clock, Circle, Sparkles, ExternalLink, X, ClipboardList } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function ResearchPlanningPage() {

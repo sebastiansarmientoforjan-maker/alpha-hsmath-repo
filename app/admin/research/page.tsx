@@ -317,6 +317,39 @@ export default function ResearchRepositoryAdmin() {
                 </p>
               </div>
 
+              {/* CTA: Create Research Collection */}
+              <div className="bg-alert-orange/20 border-4 border-alert-orange p-6 my-6">
+                <h3 className="text-xl font-bold text-dark mb-3 flex items-center gap-2">
+                  <ClipboardList size={24} />
+                  Organize Follow-Up Research
+                </h3>
+                <p className="text-dark/80 mb-4">
+                  Create a <strong>Research Collection</strong> to track and organize follow-up investigations based on these findings.
+                  Topics will be auto-extracted from the Key Findings above.
+                </p>
+                <button
+                  onClick={() => handleCreateResearchCollection(viewingInvestigation)}
+                  disabled={creatingCollection}
+                  className={`flex items-center gap-3 px-8 py-4 border-4 border-dark font-bold text-base transition-all ${
+                    creatingCollection
+                      ? 'bg-gray-300 text-dark/40 cursor-not-allowed'
+                      : 'bg-alert-orange text-dark hover:shadow-[6px_6px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-3px] hover:translate-y-[-3px]'
+                  }`}
+                >
+                  {creatingCollection ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-4 border-dark border-t-transparent"></div>
+                      <span>Creating Collection...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ClipboardList size={20} />
+                      <span>Create Research Collection</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
               <div>
                 <h3 className="text-lg font-bold text-dark mb-2">Methodology</h3>
                 <p className="text-dark font-serif whitespace-pre-wrap">
