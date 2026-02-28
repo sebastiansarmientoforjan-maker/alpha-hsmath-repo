@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FileText, Database, Home, Microscope, ArrowLeft, Users, Sparkles, Archive, AlertTriangle } from 'lucide-react';
+import { FileText, Database, Home, Microscope, ArrowLeft, Users, Sparkles, Archive, AlertTriangle, Wand2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 
