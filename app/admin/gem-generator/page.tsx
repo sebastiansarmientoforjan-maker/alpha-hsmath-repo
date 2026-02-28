@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrutalCard, BrutalButton, BrutalInput } from '@/components/ui';
-import { Sparkles, Copy, Check, Download, Save, FileText, Wand2, X } from 'lucide-react';
-import { saveGemPrompt } from '@/lib/gemPrompts';
+import { Sparkles, Copy, Check, Download, Save, FileText, Wand2, X, Archive, Trash2, Calendar } from 'lucide-react';
+import { saveGemPrompt, getAllGemPrompts, deleteGemPrompt, GemPrompt } from '@/lib/gemPrompts';
 import { useAuth } from '@/contexts/AuthContext';
 import { createInvestigation, ResearchType, MathematicalArea } from '@/lib/investigations';
 import { Timestamp } from 'firebase/firestore';
@@ -37,6 +37,63 @@ export default function GemGenerator() {
     mathematicalArea: 'Algebra' as MathematicalArea,
     author: '',
   });
+
+  // Prompt Repository State
+  const [savedPrompts, setSavedPrompts] = useState<(GemPrompt & { id: string })[]>([]);
+  const [loadingPrompts, setLoadingPrompts] = useState(true);
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
+  const [deletingPromptId, setDeletingPromptId] = useState<string | null>(null);
+
+  // Load saved prompts
+  useEffect(() => {
+    loadSavedPrompts();
+  }, []);
+
+  const loadSavedPrompts = async () => {
+    try {
+      const prompts = await getAllGemPrompts();
+      setSavedPrompts(prompts);
+    } catch (error) {
+      console.error('Error loading prompts:', error);
+    } finally {
+      setLoadingPrompts(false);
+    }
+  };
+
+  const handleCopyPrompt = (promptId: string, content: string) => {
+    navigator.clipboard.writeText(content);
+    setCopiedPromptId(promptId);
+    setTimeout(() => setCopiedPromptId(null), 2000);
+  };
+
+  const handleDeletePrompt = async (promptId: string) => {
+    if (!confirm('Are you sure you want to delete this prompt?')) {
+      return;
+    }
+
+    setDeletingPromptId(promptId);
+    try {
+      await deleteGemPrompt(promptId);
+      setSavedPrompts(savedPrompts.filter((p) => p.id !== promptId));
+    } catch (error) {
+      console.error('Error deleting prompt:', error);
+      alert('Failed to delete prompt.');
+    } finally {
+      setDeletingPromptId(null);
+    }
+  };
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'Unknown';
+    const date = timestamp.toDate();
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
+  };
 
   // Get current month/year for dynamic Recency calculation
   const getCurrentMonthYear = () => {
@@ -221,6 +278,7 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
           await saveGemPrompt(`[${activeEngine.toUpperCase()}] ${searchQuery}`, getActivePrompt());
           setSaved(true);
           setTimeout(() => setSaved(false), 2000);
+          loadSavedPrompts(); // Reload repository
           alert(`${activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} prompt saved to repository!`);
         } catch (error) {
           console.error('Error during sign in or save:', error);
@@ -235,6 +293,7 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
       await saveGemPrompt(`[${activeEngine.toUpperCase()}] ${searchQuery}`, getActivePrompt());
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+      loadSavedPrompts(); // Reload repository
       alert(`${activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} prompt saved to repository!`);
     } catch (error) {
       console.error('Error saving prompt:', error);
@@ -839,6 +898,111 @@ The system will automatically extract:
           </div>
         </div>
       )}
+
+      {/* Prompt Repository Section */}
+      <div className="mt-12 pt-8 border-t-4 border-dark">
+        <div className="mb-6">
+          <h2 className="text-3xl font-bold text-dark mb-2 flex items-center gap-3">
+            <Archive size={32} className="text-cool-blue" />
+            Saved Prompts Repository
+          </h2>
+          <p className="text-dark/70">
+            Your saved GEM prompts ready to use
+          </p>
+        </div>
+
+        {/* Repository Stats */}
+        <div className="mb-6">
+          <BrutalCard className="inline-block">
+            <div className="flex items-center gap-3">
+              <FileText size={24} className="text-cool-blue" />
+              <div>
+                <p className="text-xs uppercase tracking-wide text-dark/60 font-bold">
+                  Total Saved Prompts
+                </p>
+                <p className="text-2xl font-bold text-dark">{savedPrompts.length}</p>
+              </div>
+            </div>
+          </BrutalCard>
+        </div>
+
+        {/* Prompts List */}
+        {loadingPrompts ? (
+          <BrutalCard>
+            <div className="text-center py-8">
+              <p className="text-dark/60">Loading saved prompts...</p>
+            </div>
+          </BrutalCard>
+        ) : savedPrompts.length === 0 ? (
+          <BrutalCard>
+            <div className="text-center py-12">
+              <FileText size={64} className="mx-auto text-dark/20 mb-4" />
+              <p className="text-xl text-dark/60 mb-2">No saved prompts yet</p>
+              <p className="text-dark/50">
+                Generate a prompt above and click "Save" to see it here
+              </p>
+            </div>
+          </BrutalCard>
+        ) : (
+          <div className="space-y-4">
+            {savedPrompts.map((prompt) => (
+              <BrutalCard key={prompt.id}>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-dark mb-2">
+                      {prompt.searchQuery}
+                    </h3>
+                    <div className="flex items-center gap-2 text-sm text-dark/60">
+                      <Calendar size={14} />
+                      <span>{formatDate(prompt.createdAt)}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <BrutalButton
+                      onClick={() => handleCopyPrompt(prompt.id!, prompt.promptContent)}
+                      variant="primary"
+                      className="gap-2"
+                    >
+                      {copiedPromptId === prompt.id ? (
+                        <>
+                          <Check size={16} />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={16} />
+                          Copy
+                        </>
+                      )}
+                    </BrutalButton>
+                    <BrutalButton
+                      onClick={() => handleDeletePrompt(prompt.id!)}
+                      variant="secondary"
+                      className="gap-2"
+                      disabled={deletingPromptId === prompt.id}
+                    >
+                      <Trash2 size={16} />
+                      {deletingPromptId === prompt.id ? 'Deleting...' : 'Delete'}
+                    </BrutalButton>
+                  </div>
+                </div>
+
+                {/* Collapsible Prompt Preview */}
+                <details className="group">
+                  <summary className="cursor-pointer text-sm font-bold text-dark uppercase mb-2 hover:text-cool-blue transition-colors">
+                    View Full Prompt →
+                  </summary>
+                  <div className="mt-2 bg-bg-light border-4 border-dark p-4 font-mono text-xs max-h-96 overflow-auto">
+                    <pre className="whitespace-pre-wrap text-dark">
+                      {prompt.promptContent}
+                    </pre>
+                  </div>
+                </details>
+              </BrutalCard>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

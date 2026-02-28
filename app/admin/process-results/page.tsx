@@ -1,0 +1,466 @@
+'use client';
+
+import { useState } from 'react';
+import { BrutalCard, BrutalButton } from '@/components/ui';
+import { Sparkles, Save, Wand2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { createInvestigation, ResearchType, MathematicalArea } from '@/lib/investigations';
+import { Timestamp } from 'firebase/firestore';
+
+export default function ProcessResultsPage() {
+  const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeEngine, setActiveEngine] = useState<'gemini' | 'perplexity'>('gemini');
+  const [resultsText, setResultsText] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [processedData, setProcessedData] = useState<{
+    keyFindings: string;
+    methodology: string;
+    impactMetrics: string;
+    citations: Array<{ title: string; url: string; authors?: string }>;
+  } | null>(null);
+  const [investigationData, setInvestigationData] = useState({
+    title: '',
+    description: '',
+    researchType: 'Systematic Literature Review' as ResearchType,
+    mathematicalArea: 'Algebra' as MathematicalArea,
+    author: user?.displayName || user?.email || '',
+  });
+
+  const processWithClaude = async () => {
+    if (!resultsText.trim()) {
+      alert('Please paste research results first.');
+      return;
+    }
+
+    if (!searchQuery.trim()) {
+      alert('Please enter the original search query.');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const response = await fetch('/api/process-research-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resultsText,
+          searchQuery,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process results');
+      }
+
+      setProcessedData(data.processed);
+      alert('✅ Results processed successfully! Review and edit below before saving.');
+    } catch (error) {
+      console.error('Error processing with Claude:', error);
+      alert('Failed to process results with Claude. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const extractCitationsFromResults = (text: string) => {
+    const citations: Array<{ title: string; url: string; authors?: string }> = [];
+    const lines = text.split('\n');
+    for (const line of lines) {
+      const urlMatch = line.match(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/);
+      if (urlMatch) {
+        citations.push({
+          title: urlMatch[1],
+          url: urlMatch[2],
+        });
+      }
+    }
+    return citations;
+  };
+
+  const extractKeyFindings = (text: string) => {
+    const sections = [
+      'key findings',
+      'main findings',
+      'conclusions',
+      'summary',
+      'highlights',
+    ];
+
+    for (const section of sections) {
+      const regex = new RegExp(`${section}[:\\s]+([^#]+?)(?=\\n#{1,2}|$)`, 'i');
+      const match = text.match(regex);
+      if (match) {
+        return match[1].trim();
+      }
+    }
+    return text.substring(0, 500) + '...';
+  };
+
+  const saveInvestigation = async () => {
+    if (!user) {
+      alert('You need to sign in to create investigations.');
+      return;
+    }
+
+    if (!resultsText.trim()) {
+      alert('Please paste the research results first.');
+      return;
+    }
+
+    if (!investigationData.title.trim()) {
+      alert('Please enter an investigation title.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      let keyFindings, methodology, impactMetrics, citations, sourceCount;
+
+      if (processedData) {
+        keyFindings = processedData.keyFindings;
+        methodology = processedData.methodology;
+        impactMetrics = processedData.impactMetrics;
+        citations = processedData.citations;
+        sourceCount = processedData.citations.length;
+      } else {
+        citations = extractCitationsFromResults(resultsText);
+        keyFindings = extractKeyFindings(resultsText);
+        sourceCount = (resultsText.match(/\d+\./g) || []).length;
+        methodology = `Research conducted using ${activeEngine === 'gemini' ? 'Gemini Deep Research' : 'Perplexity AI'}.\n\nOriginal Query: "${searchQuery}"\n\nFull results captured in key findings section.`;
+        impactMetrics = `${sourceCount} sources analyzed`;
+      }
+
+      await createInvestigation({
+        title: investigationData.title,
+        description: investigationData.description || `Systematic literature review on ${searchQuery}`,
+        researchType: investigationData.researchType,
+        mathematicalArea: investigationData.mathematicalArea,
+        status: 'Completed',
+        keyFindings: keyFindings,
+        methodology: methodology,
+        impactMetrics: impactMetrics,
+        author: investigationData.author,
+        startDate: Timestamp.now(),
+        completionDate: Timestamp.now(),
+        searchKeywords: searchQuery.split(/[,\s]+/).filter(k => k.trim()),
+        databases: ['Google Scholar', 'ERIC', 'ResearchGate', 'Semantic Scholar', 'Academic Sources'],
+        paperCount: sourceCount,
+        citationLinks: citations.length > 0 ? citations : undefined,
+      });
+
+      alert('✅ Research Investigation created successfully!\n\nCheck Research Repository to view your investigation.');
+
+      // Reset form
+      setResultsText('');
+      setSearchQuery('');
+      setProcessedData(null);
+      setInvestigationData({
+        title: '',
+        description: '',
+        researchType: 'Systematic Literature Review',
+        mathematicalArea: 'Algebra',
+        author: user?.displayName || user?.email || '',
+      });
+    } catch (error) {
+      console.error('Error creating investigation:', error);
+      alert('Failed to create investigation. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-dark mb-2 flex items-center gap-3">
+          <Wand2 size={36} className="text-alert-orange" />
+          Process Research Results
+        </h1>
+        <p className="text-dark/70">
+          Paste results from Gemini or Perplexity and convert them into structured Research Investigations
+        </p>
+      </div>
+
+      {/* Instructions */}
+      <BrutalCard className="mb-6 border-cool-blue bg-cool-blue/10">
+        <h2 className="text-lg font-bold text-dark mb-3">📝 How to Use:</h2>
+        <ol className="text-sm text-dark/70 space-y-2 list-decimal list-inside">
+          <li>Enter your original search query</li>
+          <li>Select the AI engine you used (Gemini or Perplexity)</li>
+          <li>Paste the COMPLETE results including Source Reliability Matrix and citations</li>
+          <li>Click <strong>"Process with Claude"</strong> to automatically synthesize findings</li>
+          <li>Review and edit the processed results</li>
+          <li>Fill in investigation metadata</li>
+          <li>Click <strong>"Save Investigation"</strong></li>
+        </ol>
+      </BrutalCard>
+
+      {/* Original Query */}
+      <BrutalCard className="mb-6">
+        <h2 className="text-xl font-bold text-dark mb-4">1. Original Search Query</h2>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="e.g., Adaptive Learning Pathways in Algebra"
+          className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+        />
+        <p className="text-xs text-dark/60 mt-2">
+          Enter the query you used to search in Gemini/Perplexity
+        </p>
+      </BrutalCard>
+
+      {/* AI Engine Selection */}
+      <BrutalCard className="mb-6">
+        <h2 className="text-xl font-bold text-dark mb-4">2. AI Engine Used</h2>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setActiveEngine('gemini')}
+            className={`flex-1 px-6 py-4 border-4 border-dark font-bold transition-all ${
+              activeEngine === 'gemini'
+                ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
+                : 'bg-white text-dark hover:bg-bg-light'
+            }`}
+          >
+            <Sparkles size={20} className="inline mr-2" />
+            Gemini Deep Research
+          </button>
+          <button
+            onClick={() => setActiveEngine('perplexity')}
+            className={`flex-1 px-6 py-4 border-4 border-dark font-bold transition-all ${
+              activeEngine === 'perplexity'
+                ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
+                : 'bg-white text-dark hover:bg-bg-light'
+            }`}
+          >
+            Perplexity AI
+          </button>
+        </div>
+      </BrutalCard>
+
+      {/* Results Textarea */}
+      <BrutalCard className="mb-6">
+        <h2 className="text-xl font-bold text-dark mb-4">3. Paste Research Results</h2>
+        <textarea
+          value={resultsText}
+          onChange={(e) => setResultsText(e.target.value)}
+          rows={16}
+          className="w-full border-4 border-dark px-4 py-3 text-dark font-mono text-sm focus:outline-none focus:ring-4 focus:ring-alert-orange"
+          placeholder="Paste the complete results here, including:
+- Source Reliability Matrix (table with scores)
+- Key findings and conclusions
+- All citations and references
+- Methodology notes
+
+Example:
+# Key Findings
+Research demonstrates that...
+
+## Source Reliability Matrix
+| Source | Score |
+| [Paper 1](url) | 8.5 |
+
+"
+        />
+        <div className="flex items-center justify-between mt-2">
+          <p className="text-xs text-dark/60">
+            {resultsText.length} characters • {resultsText.split('\n').length} lines
+          </p>
+          <BrutalButton
+            onClick={processWithClaude}
+            disabled={processing || !resultsText.trim() || !searchQuery.trim()}
+            variant="primary"
+            className="gap-2 bg-alert-orange border-alert-orange"
+          >
+            <Sparkles size={16} />
+            {processing ? 'Processing...' : 'Process with Claude'}
+          </BrutalButton>
+        </div>
+      </BrutalCard>
+
+      {/* Processed Preview */}
+      {processedData && (
+        <BrutalCard className="mb-6 border-4 border-alert-orange bg-alert-orange/10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-dark flex items-center gap-2">
+              <Sparkles size={24} className="text-alert-orange" />
+              Claude-Processed Results
+            </h2>
+            <p className="text-xs text-dark/60">✨ AI-synthesized narrative</p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-dark mb-2">
+                KEY FINDINGS (Editable)
+              </label>
+              <textarea
+                value={processedData.keyFindings}
+                onChange={(e) =>
+                  setProcessedData({ ...processedData, keyFindings: e.target.value })
+                }
+                rows={10}
+                className="w-full border-2 border-dark px-3 py-2 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-alert-orange"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-dark mb-2">
+                METHODOLOGY (Editable)
+              </label>
+              <textarea
+                value={processedData.methodology}
+                onChange={(e) =>
+                  setProcessedData({ ...processedData, methodology: e.target.value })
+                }
+                rows={5}
+                className="w-full border-2 border-dark px-3 py-2 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-alert-orange"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-dark mb-2">
+                  IMPACT METRICS
+                </label>
+                <input
+                  type="text"
+                  value={processedData.impactMetrics}
+                  onChange={(e) =>
+                    setProcessedData({ ...processedData, impactMetrics: e.target.value })
+                  }
+                  className="w-full border-2 border-dark px-3 py-2 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-alert-orange"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-dark mb-2">
+                  CITATIONS EXTRACTED
+                </label>
+                <div className="border-2 border-dark px-3 py-2 text-sm text-dark bg-white">
+                  {processedData.citations.length} sources
+                </div>
+              </div>
+            </div>
+          </div>
+        </BrutalCard>
+      )}
+
+      {/* Investigation Metadata */}
+      <BrutalCard className="mb-6">
+        <h2 className="text-xl font-bold text-dark mb-4">4. Investigation Metadata</h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-dark mb-2">
+              Investigation Title *
+            </label>
+            <input
+              type="text"
+              value={investigationData.title}
+              onChange={(e) =>
+                setInvestigationData({ ...investigationData, title: e.target.value })
+              }
+              className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+              placeholder="e.g., Adaptive Learning Pathways in Algebra"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-dark mb-2">
+              Description (Optional)
+            </label>
+            <textarea
+              value={investigationData.description}
+              onChange={(e) =>
+                setInvestigationData({ ...investigationData, description: e.target.value })
+              }
+              rows={3}
+              className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+              placeholder="Executive summary of the investigation..."
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-dark mb-2">
+                Research Type *
+              </label>
+              <select
+                value={investigationData.researchType}
+                onChange={(e) =>
+                  setInvestigationData({
+                    ...investigationData,
+                    researchType: e.target.value as ResearchType,
+                  })
+                }
+                className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+              >
+                <option>Systematic Literature Review</option>
+                <option>Learning Pattern Analysis</option>
+                <option>Content Development</option>
+                <option>AI-Powered Pathways</option>
+                <option>Student Data Analysis</option>
+                <option>Pedagogical Innovation</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-dark mb-2">
+                Mathematical Area *
+              </label>
+              <select
+                value={investigationData.mathematicalArea}
+                onChange={(e) =>
+                  setInvestigationData({
+                    ...investigationData,
+                    mathematicalArea: e.target.value as MathematicalArea,
+                  })
+                }
+                className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+              >
+                <option>Elementary Arithmetic</option>
+                <option>Algebra</option>
+                <option>Geometry</option>
+                <option>Calculus</option>
+                <option>Statistics</option>
+                <option>Cross-Domain</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-dark mb-2">
+              Author *
+            </label>
+            <input
+              type="text"
+              value={investigationData.author}
+              onChange={(e) =>
+                setInvestigationData({ ...investigationData, author: e.target.value })
+              }
+              className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+              placeholder="Your name"
+            />
+          </div>
+        </div>
+      </BrutalCard>
+
+      {/* Save Button */}
+      <div className="flex gap-3">
+        <BrutalButton
+          onClick={saveInvestigation}
+          variant="primary"
+          className="flex-1 gap-2"
+          disabled={saving || !investigationData.title || !investigationData.author || !resultsText.trim()}
+        >
+          <Save size={20} />
+          {saving ? 'Saving...' : 'Save Investigation'}
+        </BrutalButton>
+      </div>
+    </div>
+  );
+}

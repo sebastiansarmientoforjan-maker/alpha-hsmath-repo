@@ -21,7 +21,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: Home },
     { href: '/admin/gem-generator', label: 'GEM Generator', icon: Sparkles },
-    { href: '/admin/prompt-repository', label: 'Prompt Repository', icon: Archive },
+    { href: '/admin/process-results', label: 'Process Results', icon: Wand2 },
     { href: '/admin/research', label: 'Research Repository', icon: Microscope },
     { href: '/admin/decision-logs', label: 'Decision Logs', icon: Database },
     { href: '/admin/scrollytelling', label: 'Scrollytelling Reports', icon: FileText },
