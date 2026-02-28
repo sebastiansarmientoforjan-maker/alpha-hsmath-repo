@@ -15,6 +15,7 @@ export default function AdminDashboard() {
   const [orphanedReports, setOrphanedReports] = useState(0);
   const [reportsPerDecision, setReportsPerDecision] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadStatistics();
@@ -22,6 +23,7 @@ export default function AdminDashboard() {
 
   const loadStatistics = async () => {
     try {
+      setError(null);
       const [reports, logs, investigations] = await Promise.all([
         getAllReports(),
         getAllDecisionLogs(),
@@ -48,8 +50,9 @@ export default function AdminDashboard() {
               logsWithReports.length).toFixed(1)
           : 0;
       setReportsPerDecision(Number(avgReports));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load statistics:', error);
+      setError(error?.message || 'Failed to load dashboard data. Check Firebase permissions.');
     } finally {
       setLoading(false);
     }
@@ -62,11 +65,29 @@ export default function AdminDashboard() {
         HS Math Documentation & Analysis Hub - Content Management System
       </p>
 
+      {error && (
+        <BrutalCard className="mb-6 border-alert-orange bg-alert-orange/10">
+          <div className="flex items-start gap-4">
+            <AlertTriangle size={24} className="text-alert-orange flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="text-lg font-bold text-dark mb-1">Dashboard Error</h3>
+              <p className="text-dark/80 mb-3">{error}</p>
+              <button
+                onClick={loadStatistics}
+                className="px-4 py-2 border-4 border-dark bg-white text-dark font-bold hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </BrutalCard>
+      )}
+
       {loading ? (
         <BrutalCard>
           <p className="text-center text-dark/60 py-8">Loading statistics...</p>
         </BrutalCard>
-      ) : (
+      ) : !error ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
             <BrutalCard>
@@ -158,7 +179,7 @@ export default function AdminDashboard() {
             </div>
           )}
         </>
-      )}
+      ) : null}
 
       <BrutalCard>
         <h2 className="text-xl font-bold text-dark mb-4">Quick Start Guide</h2>
