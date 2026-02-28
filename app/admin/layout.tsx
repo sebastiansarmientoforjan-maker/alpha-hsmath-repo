@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FileText, Database, Home, Microscope, ArrowLeft, Users, Sparkles, Archive, AlertTriangle, Wand2 } from 'lucide-react';
+import { FileText, Database, Home, Microscope, ArrowLeft, Users, Sparkles, Archive, AlertTriangle, Wand2, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 
@@ -20,6 +20,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: Home },
+    { href: '/admin/research-planning', label: 'Research Planning', icon: ClipboardList },
     { href: '/admin/gem-generator', label: 'GEM Generator', icon: Sparkles },
     { href: '/admin/process-results', label: 'Process Results', icon: Wand2 },
     { href: '/admin/research', label: 'Research Repository', icon: Microscope },

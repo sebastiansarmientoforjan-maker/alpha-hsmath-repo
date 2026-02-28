@@ -64,6 +64,14 @@ export default function GemGenerator() {
 
   // Restore draft from localStorage on mount
   useEffect(() => {
+    // Check for prefill from Research Planning
+    const prefill = localStorage.getItem('gem-query-prefill');
+    if (prefill) {
+      setSearchQuery(prefill);
+      localStorage.removeItem('gem-query-prefill');
+      return; // Don't restore draft if we have a prefill
+    }
+
     const savedDraft = localStorage.getItem('gem-generator-draft');
     if (savedDraft) {
       try {
