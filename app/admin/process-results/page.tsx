@@ -188,16 +188,41 @@ export default function ProcessResultsPage() {
     }
   };
 
+  const resetAll = () => {
+    if (confirm('Reset all fields and start over? This will clear all your work.')) {
+      setResultsText('');
+      setSearchQuery('');
+      setProcessedData(null);
+      setInvestigationData({
+        title: '',
+        researchType: 'Systematic Literature Review',
+        mathematicalArea: 'Algebra',
+        author: user?.displayName || user?.email || '',
+      });
+      setActiveEngine('both');
+    }
+  };
+
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-dark mb-2 flex items-center gap-3">
-          <Wand2 size={36} className="text-alert-orange" />
-          Process Research Results
-        </h1>
-        <p className="text-dark/70">
-          Paste results from Gemini or Perplexity and convert them into structured Research Investigations
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-dark mb-2 flex items-center gap-3">
+            <Wand2 size={36} className="text-alert-orange" />
+            Process Research Results
+          </h1>
+          <p className="text-dark/70">
+            Paste results from Gemini or Perplexity and convert them into structured Research Investigations
+          </p>
+        </div>
+        {(resultsText || processedData) && (
+          <button
+            onClick={resetAll}
+            className="px-6 py-3 border-4 border-dark bg-white text-dark font-bold hover:bg-alert-orange/20 hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all"
+          >
+            🔄 Start Over
+          </button>
+        )}
       </div>
 
       {/* Instructions */}
@@ -233,44 +258,49 @@ export default function ProcessResultsPage() {
       {/* AI Engine Selection */}
       <BrutalCard className="mb-6">
         <h2 className="text-xl font-bold text-dark mb-4">2. AI Engine Used</h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-4">
           <button
             onClick={() => setActiveEngine('gemini')}
-            className={`px-6 py-4 border-4 border-dark font-bold transition-all ${
+            className={`group px-6 py-6 border-4 border-dark font-bold transition-all ${
               activeEngine === 'gemini'
-                ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
-                : 'bg-white text-dark hover:bg-bg-light'
+                ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] scale-105'
+                : 'bg-white text-dark hover:bg-cool-blue/20 hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]'
             }`}
           >
-            <Sparkles size={20} className="inline mr-2" />
-            Gemini Only
+            <Sparkles size={24} className={`inline mb-2 ${activeEngine === 'gemini' ? '' : 'group-hover:animate-pulse'}`} />
+            <div className="text-base">Gemini Only</div>
+            {activeEngine === 'gemini' && <div className="text-xs font-normal mt-1">✓ Selected</div>}
           </button>
           <button
             onClick={() => setActiveEngine('perplexity')}
-            className={`px-6 py-4 border-4 border-dark font-bold transition-all ${
+            className={`group px-6 py-6 border-4 border-dark font-bold transition-all ${
               activeEngine === 'perplexity'
-                ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
-                : 'bg-white text-dark hover:bg-bg-light'
+                ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] scale-105'
+                : 'bg-white text-dark hover:bg-cool-blue/20 hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]'
             }`}
           >
-            Perplexity Only
+            <div className="text-base">Perplexity Only</div>
+            {activeEngine === 'perplexity' && <div className="text-xs font-normal mt-1">✓ Selected</div>}
           </button>
           <button
             onClick={() => setActiveEngine('both')}
-            className={`px-6 py-4 border-4 border-dark font-bold transition-all ${
+            className={`group px-6 py-6 border-4 border-dark font-bold transition-all ${
               activeEngine === 'both'
-                ? 'bg-alert-orange text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
-                : 'bg-white text-dark hover:bg-bg-light'
+                ? 'bg-alert-orange text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] scale-105'
+                : 'bg-white text-dark hover:bg-alert-orange/20 hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]'
             }`}
           >
-            <Sparkles size={20} className="inline mr-2" />
-            Both / Ambas
+            <Sparkles size={24} className={`inline mb-2 ${activeEngine === 'both' ? '' : 'group-hover:animate-pulse'}`} />
+            <div className="text-base">Both / Ambas</div>
+            {activeEngine === 'both' && <div className="text-xs font-normal mt-1">✓ Recommended</div>}
           </button>
         </div>
         {activeEngine === 'both' && (
-          <p className="text-xs text-dark/70 mt-3 p-3 border-2 border-alert-orange bg-alert-orange/10">
-            💡 <strong>Tip:</strong> Paste results from both engines in the same textarea. Separate them with clear headers like "=== GEMINI RESULTS ===" and "=== PERPLEXITY RESULTS ==="
-          </p>
+          <div className="mt-4 p-4 border-2 border-alert-orange bg-alert-orange/10 animate-fade-in">
+            <p className="text-sm text-dark/80">
+              💡 <strong>Tip:</strong> Paste results from both engines in the same textarea. Separate them with clear headers like "=== GEMINI RESULTS ===" and "=== PERPLEXITY RESULTS ==="
+            </p>
+          </div>
         )}
       </BrutalCard>
 
@@ -304,19 +334,46 @@ Example (both engines):
 [Perplexity findings here...]
 "
         />
-        <div className="flex items-center justify-between mt-2">
-          <p className="text-xs text-dark/60">
+        <div className="mt-4">
+          <p className="text-xs text-dark/60 mb-3">
             {resultsText.length} characters • {resultsText.split('\n').length} lines
           </p>
-          <BrutalButton
-            onClick={processWithClaude}
-            disabled={processing || !resultsText.trim()}
-            variant="primary"
-            className="gap-2 bg-alert-orange border-alert-orange"
-          >
-            <Sparkles size={16} />
-            {processing ? 'Processing...' : 'Process with Claude'}
-          </BrutalButton>
+          <div className="flex gap-3">
+            <button
+              onClick={processWithClaude}
+              disabled={processing || !resultsText.trim()}
+              className={`flex-1 flex items-center justify-center gap-3 px-8 py-5 border-4 border-dark font-bold text-lg transition-all ${
+                processing || !resultsText.trim()
+                  ? 'bg-gray-300 text-dark/40 cursor-not-allowed'
+                  : 'bg-alert-orange text-dark hover:shadow-[8px_8px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-4px] hover:translate-y-[-4px] active:shadow-[2px_2px_0px_0px_rgba(18,18,18,1)] active:translate-x-[2px] active:translate-y-[2px]'
+              }`}
+            >
+              {processing ? (
+                <>
+                  <div className="animate-spin rounded-full h-6 w-6 border-4 border-dark border-t-transparent"></div>
+                  <span>Processing with Claude AI...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={24} />
+                  <span>Process with Claude</span>
+                </>
+              )}
+            </button>
+            {resultsText.trim() && (
+              <button
+                onClick={() => {
+                  if (confirm('Clear all results? This will remove the pasted text.')) {
+                    setResultsText('');
+                  }
+                }}
+                className="px-6 py-5 border-4 border-dark bg-white text-dark font-bold hover:bg-bg-light transition-all"
+                title="Clear results"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
       </BrutalCard>
 
@@ -528,16 +585,42 @@ Example (both engines):
       </BrutalCard>
 
       {/* Save Button */}
-      <div className="flex gap-3">
-        <BrutalButton
-          onClick={saveInvestigation}
-          variant="primary"
-          className="flex-1 gap-2"
-          disabled={saving || !investigationData.title || !investigationData.author || !resultsText.trim()}
-        >
-          <Save size={20} />
-          {saving ? 'Saving...' : 'Save Investigation'}
-        </BrutalButton>
+      <div className="sticky bottom-4 bg-white border-4 border-dark p-6 shadow-[8px_8px_0px_0px_rgba(18,18,18,1)]">
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-dark mb-1">Ready to save?</h3>
+            <p className="text-sm text-dark/60">
+              {!processedData
+                ? '⚠️ Process with Claude first to generate complete investigation data'
+                : !investigationData.title
+                ? '⚠️ Investigation title is required'
+                : !investigationData.author
+                ? '⚠️ Author name is required'
+                : '✅ All required fields complete - ready to save!'}
+            </p>
+          </div>
+          <button
+            onClick={saveInvestigation}
+            disabled={saving || !investigationData.title || !investigationData.author || !resultsText.trim()}
+            className={`flex items-center gap-3 px-10 py-5 border-4 border-dark font-bold text-lg transition-all ${
+              saving || !investigationData.title || !investigationData.author || !resultsText.trim()
+                ? 'bg-gray-300 text-dark/40 cursor-not-allowed'
+                : 'bg-cool-blue text-dark hover:shadow-[8px_8px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-4px] hover:translate-y-[-4px] active:shadow-[2px_2px_0px_0px_rgba(18,18,18,1)] active:translate-x-[2px] active:translate-y-[2px]'
+            }`}
+          >
+            {saving ? (
+              <>
+                <div className="animate-spin rounded-full h-6 w-6 border-4 border-dark border-t-transparent"></div>
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Save size={24} />
+                <span>Save Investigation</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
