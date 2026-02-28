@@ -256,49 +256,17 @@ export default function ProcessResultsPage() {
   const handleCreateCollectionFromSuccess = async () => {
     if (!savedInvestigationId || !user) return;
 
-    if (!savedKeyFindings) {
-      alert('Key findings are missing. Cannot create collection.');
-      console.error('Missing savedKeyFindings:', savedKeyFindings);
-      return;
-    }
-
-    // Accept both string and array formats (for backward compatibility)
-    if (typeof savedKeyFindings !== 'string' && !Array.isArray(savedKeyFindings)) {
-      alert('Key findings have invalid format. Cannot create collection.');
-      console.error('Invalid savedKeyFindings format:', savedKeyFindings);
-      return;
-    }
-
     try {
       setCreatingCollection(true);
 
-      // Get key findings from saved state (handles both string and array)
-      const topics = extractTopicsFromKeyFindings(savedKeyFindings);
-
-      if (topics.length === 0) {
-        alert('No topics found in key findings. Please ensure findings are formatted with bullet points.');
-        setCreatingCollection(false);
-        return;
-      }
-
-      // Create the collection
+      // Create the collection (empty - user will add topics manually)
       const collectionId = await createResearchCollection({
-        title: `Research Collection: ${savedInvestigationTitle}`,
-        description: `Auto-generated collection from investigation: ${savedInvestigationTitle}`,
+        title: `${savedInvestigationTitle} - Research Collection`,
+        description: `Research collection from investigation: ${savedInvestigationTitle}`,
         sourceInvestigationId: savedInvestigationId,
         sourceInvestigationTitle: savedInvestigationTitle,
         createdBy: user.displayName || user.email || 'Unknown',
       });
-
-      // Add topics to collection
-      for (const topicTitle of topics) {
-        await addTopicToCollection(collectionId, {
-          title: topicTitle,
-          status: 'pending',
-          linkedInvestigationId: savedInvestigationId,
-          linkedInvestigationTitle: savedInvestigationTitle,
-        });
-      }
 
       // Close modal and navigate to research collections tab
       setShowSuccessModal(false);
@@ -749,13 +717,13 @@ Example (both engines):
                 Next Step: Create a Research Collection?
               </h3>
               <p className="text-sm text-dark/80 mb-4">
-                Would you like to create a Research Collection with topics from this investigation?
-                This helps you organize follow-up research and track progress on specific findings.
+                Would you like to create a Research Collection for this investigation?
+                This helps you organize follow-up research and track progress on specific topics.
               </p>
               <ul className="text-sm text-dark/70 space-y-2 list-disc list-inside">
-                <li>Auto-extracts topics from Key Findings</li>
+                <li>Add topics manually based on your research goals</li>
                 <li>Track research progress (pending → in-progress → completed)</li>
-                <li>Link each topic back to this investigation</li>
+                <li>Link the collection back to this investigation</li>
                 <li>Generate GEM prompts directly from topics</li>
               </ul>
             </div>

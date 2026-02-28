@@ -45,6 +45,8 @@ export default function ResearchRepositoryAdmin() {
   const [expandedCollectionId, setExpandedCollectionId] = useState<string | null>(null);
   const [editingCollection, setEditingCollection] = useState<ResearchCollection | null>(null);
   const [editingTopic, setEditingTopic] = useState<{ collectionId: string; topic: ResearchTopic } | null>(null);
+  const [addingTopicToCollection, setAddingTopicToCollection] = useState<string | null>(null);
+  const [newTopicTitle, setNewTopicTitle] = useState('');
 
   useEffect(() => {
     // Check query param for initial tab
@@ -155,50 +157,19 @@ export default function ResearchRepositoryAdmin() {
       return;
     }
 
-    if (!investigation.keyFindings) {
-      alert('This investigation has missing key findings. Cannot create collection.');
-      console.error('Missing keyFindings:', investigation.keyFindings);
-      return;
-    }
-
-    // Accept both string and array formats (for backward compatibility)
-    if (typeof investigation.keyFindings !== 'string' && !Array.isArray(investigation.keyFindings)) {
-      alert('This investigation has invalid key findings format. Cannot create collection.');
-      console.error('Invalid keyFindings format:', investigation.keyFindings);
-      return;
-    }
-
     setCreatingCollection(true);
     try {
-      // Extract topics from key findings (handles both string and array)
-      const topicTitles = extractTopicsFromKeyFindings(investigation.keyFindings);
-
-      if (topicTitles.length === 0) {
-        alert('No topics could be extracted from the key findings. The key findings may not be formatted correctly.');
-        setCreatingCollection(false);
-        return;
-      }
-
-      // Create collection
+      // Create collection (empty - user will add topics manually)
       const collectionId = await createResearchCollection({
-        title: `${investigation.title} - Deep Dive`,
-        description: `Extended research collection based on: ${investigation.title}`,
-        notes: `Source: ${investigation.title}\n\nExplore specific aspects of the findings in depth.`,
+        title: `${investigation.title} - Research Collection`,
+        description: `Research collection based on: ${investigation.title}`,
+        notes: `Source: ${investigation.title}\n\nAdd topics manually to organize your research.`,
         sourceInvestigationId: investigation.id,
         sourceInvestigationTitle: investigation.title,
         createdBy: user.email || user.displayName || 'Unknown',
       });
 
-      // Add extracted topics to collection
-      for (const topicTitle of topicTitles) {
-        await addTopicToCollection(collectionId, {
-          title: topicTitle,
-          status: 'pending',
-          notes: 'Extracted from investigation key findings',
-        });
-      }
-
-      alert(`✅ Research Collection created with ${topicTitles.length} topics!`);
+      alert(`✅ Research Collection created!\n\nYou can now add topics manually.`);
 
       // Switch to collections tab and load collections
       setActiveTab('collections');
@@ -269,6 +240,26 @@ export default function ResearchRepositoryAdmin() {
     } catch (error) {
       console.error('Error deleting topic:', error);
       alert('Failed to delete topic.');
+    }
+  };
+
+  const handleAddTopic = async (collectionId: string) => {
+    if (!newTopicTitle.trim()) {
+      alert('Please enter a topic title.');
+      return;
+    }
+
+    try {
+      await addTopicToCollection(collectionId, {
+        title: newTopicTitle.trim(),
+        status: 'pending',
+      });
+      await loadCollections();
+      setNewTopicTitle('');
+      setAddingTopicToCollection(null);
+    } catch (error) {
+      console.error('Error adding topic:', error);
+      alert('Failed to add topic.');
     }
   };
 
@@ -507,7 +498,7 @@ export default function ResearchRepositoryAdmin() {
                 </h3>
                 <p className="text-dark/80 mb-4">
                   Create a <strong>Research Collection</strong> to track and organize follow-up investigations based on these findings.
-                  Topics will be auto-extracted from the Key Findings above.
+                  You can add topics manually to organize your research goals.
                 </p>
                 <button
                   onClick={() => handleCreateResearchCollection(viewingInvestigation)}
@@ -754,8 +745,58 @@ export default function ResearchRepositoryAdmin() {
                     {/* Topics List (Collapsible) */}
                     {isExpanded && (
                       <div className="p-6 bg-bg-light">
+                        {/* Add Topic Button/Form */}
+                        {addingTopicToCollection === collection.id ? (
+                          <div className="mb-4 p-4 border-4 border-cool-blue bg-white">
+                            <h4 className="text-sm font-bold text-dark mb-3">Add New Topic</h4>
+                            <div className="flex gap-3">
+                              <input
+                                type="text"
+                                value={newTopicTitle}
+                                onChange={(e) => setNewTopicTitle(e.target.value)}
+                                placeholder="Enter topic title..."
+                                className="flex-1 border-2 border-dark px-3 py-2 text-dark focus:outline-none focus:ring-2 focus:ring-cool-blue"
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleAddTopic(collection.id!);
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => handleAddTopic(collection.id!)}
+                                className="px-4 py-2 border-2 border-dark bg-cool-blue text-dark font-bold hover:shadow-[2px_2px_0px_0px_rgba(18,18,18,1)] transition-all"
+                              >
+                                <Check size={20} />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setAddingTopicToCollection(null);
+                                  setNewTopicTitle('');
+                                }}
+                                className="px-4 py-2 border-2 border-dark bg-white text-dark font-bold hover:bg-bg-light transition-all"
+                              >
+                                <X size={20} />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setAddingTopicToCollection(collection.id!)}
+                            className="mb-4 w-full px-4 py-3 border-4 border-dark bg-cool-blue text-dark font-bold hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all"
+                          >
+                            <Plus size={20} className="inline mr-2" />
+                            Add Topic
+                          </button>
+                        )}
+
                         <div className="space-y-3">
-                          {collection.topics.map((topic) => (
+                          {collection.topics.length === 0 ? (
+                            <div className="text-center py-8 text-dark/60">
+                              <p className="text-sm">No topics yet. Click "Add Topic" to get started.</p>
+                            </div>
+                          ) : (
+                            collection.topics.map((topic) => (
                             <div
                               key={topic.id}
                               className="p-4 border-4 border-dark bg-white hover:shadow-[2px_2px_0px_0px_rgba(18,18,18,1)] transition-all"
@@ -807,7 +848,8 @@ export default function ResearchRepositoryAdmin() {
                                 </div>
                               </div>
                             </div>
-                          ))}
+                          ))
+                          )}
                         </div>
                       </div>
                     )}
