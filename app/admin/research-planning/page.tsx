@@ -68,7 +68,7 @@ export default function ResearchPlanningPage() {
 
   const handleSaveCollection = async () => {
     if (!user) {
-      alert('Please sign in to create collections.');
+      alert('Please sign in to edit collections.');
       return;
     }
 
@@ -77,19 +77,17 @@ export default function ResearchPlanningPage() {
       return;
     }
 
+    if (!editingCollection) {
+      alert('Collections can only be created from investigations.');
+      return;
+    }
+
     try {
-      if (editingCollection) {
-        await updateResearchCollection(editingCollection.id!, {
-          title: collectionForm.title,
-          description: collectionForm.description,
-          notes: collectionForm.notes,
-        });
-      } else {
-        await createResearchCollection({
-          ...collectionForm,
-          createdBy: user.email || user.displayName || 'Unknown',
-        });
-      }
+      await updateResearchCollection(editingCollection.id!, {
+        title: collectionForm.title,
+        description: collectionForm.description,
+        notes: collectionForm.notes,
+      });
       await loadCollections();
       resetCollectionForm();
     } catch (error) {
@@ -226,21 +224,20 @@ export default function ResearchPlanningPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-dark mb-2">Research Planning</h1>
-          <p className="text-dark/70">
-            Plan, track, and organize your research topics into collections
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-dark mb-2">Research Planning</h1>
+        <p className="text-dark/70">
+          Track and organize research collections created from investigations
+        </p>
+        <div className="mt-3 p-3 border-2 border-cool-blue bg-cool-blue/10">
+          <p className="text-sm text-dark/80">
+            💡 <strong>How to create a collection:</strong> Go to{' '}
+            <a href="/admin/research" className="text-cool-blue hover:underline font-bold">
+              Research Repository
+            </a>
+            {' '}→ View an investigation → Click "Create Collection"
           </p>
         </div>
-        <BrutalButton
-          onClick={() => setShowCollectionForm(true)}
-          variant="primary"
-          className="gap-2"
-        >
-          <Plus size={20} />
-          New Collection
-        </BrutalButton>
       </div>
 
       {/* Collection Form Modal */}
@@ -315,11 +312,17 @@ export default function ResearchPlanningPage() {
       ) : collections.length === 0 ? (
         <BrutalCard>
           <div className="text-center py-12">
-            <p className="text-dark/60 mb-4">No research collections yet.</p>
-            <BrutalButton onClick={() => setShowCollectionForm(true)} variant="primary" className="gap-2">
-              <Plus size={20} />
-              Create Your First Collection
-            </BrutalButton>
+            <ClipboardList size={48} className="mx-auto mb-4 text-dark/40" />
+            <p className="text-dark/60 mb-2 text-lg font-bold">No research collections yet.</p>
+            <p className="text-dark/50 mb-6">
+              Collections are created from investigations to organize deep-dive research topics.
+            </p>
+            <a
+              href="/admin/research"
+              className="inline-flex items-center gap-2 px-6 py-3 border-4 border-dark bg-cool-blue text-dark font-bold hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all"
+            >
+              Go to Research Repository →
+            </a>
           </div>
         </BrutalCard>
       ) : (
@@ -334,6 +337,18 @@ export default function ResearchPlanningPage() {
                 {/* Collection Header */}
                 <div className="flex items-start justify-between mb-4 pb-4 border-b-4 border-dark">
                   <div className="flex-1">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="text-xs px-2 py-1 border-2 border-dark bg-cool-blue font-bold">
+                        📄 FROM INVESTIGATION
+                      </span>
+                      <a
+                        href="/admin/research"
+                        className="text-xs text-cool-blue hover:underline"
+                        title={`Source: ${collection.sourceInvestigationTitle}`}
+                      >
+                        {collection.sourceInvestigationTitle}
+                      </a>
+                    </div>
                     <h2 className="text-2xl font-bold text-dark mb-2">{collection.title}</h2>
                     <p className="text-dark/70 mb-3">{collection.description}</p>
 

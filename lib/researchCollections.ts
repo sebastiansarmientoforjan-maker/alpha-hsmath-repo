@@ -31,6 +31,8 @@ export interface ResearchCollection {
   description: string;
   notes?: string;
   topics: ResearchTopic[];
+  sourceInvestigationId: string; // Required - collection must come from an investigation
+  sourceInvestigationTitle: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   createdBy: string;

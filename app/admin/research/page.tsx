@@ -9,13 +9,19 @@ import {
 } from '@/lib/investigations';
 import { getReportsByInvestigation } from '@/lib/scrollytellingReports';
 import { ScrollytellingReport } from '@/lib/uploadHtmlReport';
-import { Trash2, FileText, Eye, X } from 'lucide-react';
+import { createResearchCollection, addTopicToCollection } from '@/lib/researchCollections';
+import { useAuth } from '@/contexts/AuthContext';
+import { Trash2, FileText, Eye, X, ClipboardList } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function ResearchRepositoryAdmin() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [loadingInvestigations, setLoadingInvestigations] = useState(true);
   const [viewingInvestigation, setViewingInvestigation] = useState<Investigation | null>(null);
   const [viewingReports, setViewingReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
+  const [creatingCollection, setCreatingCollection] = useState(false);
 
 
   useEffect(() => {
@@ -51,6 +57,95 @@ export default function ResearchRepositoryAdmin() {
     if (investigation.id) {
       const reports = await getReportsByInvestigation(investigation.id);
       setViewingReports(reports);
+    }
+  };
+
+  const extractTopicsFromKeyFindings = (keyFindings: string): string[] => {
+    const topics: string[] = [];
+    const lines = keyFindings.split('\n');
+
+    for (const line of lines) {
+      // Match lines with bullet points and category tags like "• [PEDAGOGY] Finding Title:"
+      const match = line.match(/^[•\-\*]\s*(?:\[[\w\s]+\])?\s*(.+?)(?::|$)/);
+      if (match) {
+        let topic = match[1].trim();
+        // Remove category tags if present
+        topic = topic.replace(/^\[[\w\s]+\]\s*/, '');
+        // Limit to first 100 characters
+        if (topic.length > 100) {
+          topic = topic.substring(0, 97) + '...';
+        }
+        if (topic) {
+          topics.push(topic);
+        }
+      }
+    }
+
+    // If no topics found, split by paragraphs and use first sentence of each
+    if (topics.length === 0) {
+      const paragraphs = keyFindings.split('\n\n').filter(p => p.trim());
+      for (const paragraph of paragraphs.slice(0, 7)) {
+        const firstSentence = paragraph.split(/[.!?]/)[0].trim();
+        if (firstSentence && firstSentence.length > 10) {
+          const topic = firstSentence.length > 100
+            ? firstSentence.substring(0, 97) + '...'
+            : firstSentence;
+          topics.push(topic);
+        }
+      }
+    }
+
+    return topics.slice(0, 10); // Max 10 topics
+  };
+
+  const handleCreateResearchCollection = async (investigation: Investigation) => {
+    if (!user) {
+      alert('Please sign in to create research collections.');
+      return;
+    }
+
+    if (!investigation.id) {
+      alert('Investigation ID is missing.');
+      return;
+    }
+
+    setCreatingCollection(true);
+    try {
+      // Extract topics from key findings
+      const topicTitles = extractTopicsFromKeyFindings(investigation.keyFindings);
+
+      if (topicTitles.length === 0) {
+        alert('No topics could be extracted from the key findings. Please add topics manually.');
+      }
+
+      // Create collection
+      const collectionId = await createResearchCollection({
+        title: `${investigation.title} - Deep Dive`,
+        description: `Extended research collection based on: ${investigation.title}`,
+        notes: `Source: ${investigation.title}\n\nExplore specific aspects of the findings in depth.`,
+        sourceInvestigationId: investigation.id,
+        sourceInvestigationTitle: investigation.title,
+        createdBy: user.email || user.displayName || 'Unknown',
+      });
+
+      // Add extracted topics to collection
+      for (const topicTitle of topicTitles) {
+        await addTopicToCollection(collectionId, {
+          title: topicTitle,
+          status: 'pending',
+          notes: 'Extracted from investigation key findings',
+        });
+      }
+
+      alert(`✅ Research Collection created with ${topicTitles.length} topics!\n\nRedirecting to Research Planning...`);
+
+      // Redirect to Research Planning
+      router.push('/admin/research-planning');
+    } catch (error) {
+      console.error('Error creating research collection:', error);
+      alert('Failed to create research collection. Please try again.');
+    } finally {
+      setCreatingCollection(false);
     }
   };
 
@@ -168,7 +263,7 @@ export default function ResearchRepositoryAdmin() {
         <div className="fixed inset-0 bg-dark/50 flex items-center justify-center z-50 p-4 overflow-auto">
           <div className="bg-white border-4 border-dark max-w-4xl w-full max-h-[90vh] overflow-auto my-8">
             <div className="sticky top-0 bg-cool-blue border-b-4 border-dark p-6 flex items-start justify-between z-10">
-              <div>
+              <div className="flex-1">
                 <h2 className="text-2xl font-bold text-dark mb-2">{viewingInvestigation.title}</h2>
                 <div className="flex gap-2 text-sm">
                   <span className="px-2 py-1 border-2 border-dark bg-white font-bold">
@@ -179,12 +274,32 @@ export default function ResearchRepositoryAdmin() {
                   </span>
                 </div>
               </div>
-              <button
-                onClick={() => setViewingInvestigation(null)}
-                className="p-2 border-4 border-dark bg-white hover:bg-alert-orange transition-colors"
-              >
-                <X size={24} />
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleCreateResearchCollection(viewingInvestigation)}
+                  disabled={creatingCollection}
+                  className="flex items-center gap-2 px-4 py-2 border-4 border-dark bg-alert-orange text-dark font-bold hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-2px] hover:translate-y-[-2px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Create research collection with topics from this investigation"
+                >
+                  {creatingCollection ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-dark border-t-transparent"></div>
+                      <span>Creating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ClipboardList size={20} />
+                      <span>Create Collection</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setViewingInvestigation(null)}
+                  className="p-2 border-4 border-dark bg-white hover:bg-alert-orange transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
             </div>
 
             <div className="p-6 space-y-6">
