@@ -9,7 +9,7 @@ import {
 } from '@/lib/investigations';
 import { getReportsByInvestigation } from '@/lib/scrollytellingReports';
 import { ScrollytellingReport } from '@/lib/uploadHtmlReport';
-import { Trash2, FileText, Eye } from 'lucide-react';
+import { Trash2, FileText, Eye, X } from 'lucide-react';
 
 export default function ResearchRepositoryAdmin() {
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
