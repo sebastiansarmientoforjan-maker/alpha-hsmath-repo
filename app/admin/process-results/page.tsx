@@ -1,12 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrutalCard, BrutalButton } from '@/components/ui';
 import { Sparkles, Save, Wand2, ClipboardList, Eye } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createInvestigation, ResearchType, MathematicalArea } from '@/lib/investigations';
 import { Timestamp } from 'firebase/firestore';
-import { createResearchCollection, addTopicToCollection } from '@/lib/researchCollections';
+import {
+  createResearchCollection,
+  addTopicToCollection,
+  getAllResearchCollections,
+  updateTopicInCollection,
+  ResearchCollection
+} from '@/lib/researchCollections';
 import { useRouter } from 'next/navigation';
 
 export default function ProcessResultsPage() {
@@ -37,6 +43,28 @@ export default function ProcessResultsPage() {
     mathematicalArea: 'Algebra' as MathematicalArea,
     author: user?.displayName || user?.email || '',
   });
+
+  // Collections association
+  const [collections, setCollections] = useState<ResearchCollection[]>([]);
+  const [associationType, setAssociationType] = useState<'new' | 'existing'>('new');
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string>('');
+  const [selectedTopicId, setSelectedTopicId] = useState<string>('');
+
+  // Load collections on mount
+  useEffect(() => {
+    const loadCollections = async () => {
+      try {
+        const data = await getAllResearchCollections();
+        setCollections(data);
+      } catch (error) {
+        console.error('Error loading collections:', error);
+      }
+    };
+
+    if (user) {
+      loadCollections();
+    }
+  }, [user]);
 
   const processWithClaude = async () => {
     if (!resultsText.trim()) {
@@ -176,11 +204,25 @@ export default function ProcessResultsPage() {
         citationLinks: citations.length > 0 ? citations : undefined,
       });
 
-      // Save investigation details for success modal (before resetting)
-      setSavedInvestigationId(investigationId);
-      setSavedInvestigationTitle(investigationData.title);
-      setSavedKeyFindings(keyFindings); // Save keyFindings before reset
-      setShowSuccessModal(true);
+      // If associating to existing topic, update it
+      if (associationType === 'existing' && selectedCollectionId && selectedTopicId) {
+        await updateTopicInCollection(selectedCollectionId, selectedTopicId, {
+          linkedInvestigationId: investigationId,
+          linkedInvestigationTitle: investigationData.title,
+          status: 'in-progress', // Mark as in-progress when investigation is linked
+        } as any);
+
+        alert(`✅ Investigation saved and linked to topic!\n\nView it in Research Collections.`);
+
+        // Navigate to collections tab
+        router.push('/admin/research?tab=collections');
+      } else {
+        // Save investigation details for success modal (before resetting)
+        setSavedInvestigationId(investigationId);
+        setSavedInvestigationTitle(investigationData.title);
+        setSavedKeyFindings(keyFindings); // Save keyFindings before reset
+        setShowSuccessModal(true);
+      }
 
       // Reset form
       setResultsText('');
@@ -192,6 +234,9 @@ export default function ProcessResultsPage() {
         mathematicalArea: 'Algebra',
         author: user?.displayName || user?.email || '',
       });
+      setAssociationType('new');
+      setSelectedCollectionId('');
+      setSelectedTopicId('');
     } catch (error) {
       console.error('Error creating investigation:', error);
       alert('Failed to create investigation. Please try again.');
@@ -520,9 +565,107 @@ Example (both engines):
         </BrutalCard>
       )}
 
+      {/* Association Type */}
+      <BrutalCard className="mb-6">
+        <h2 className="text-xl font-bold text-dark mb-4">4. Association Type</h2>
+        <p className="text-sm text-dark/70 mb-4">
+          Choose whether to create a new standalone investigation or associate it with an existing research topic.
+        </p>
+
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <button
+            onClick={() => {
+              setAssociationType('new');
+              setSelectedCollectionId('');
+              setSelectedTopicId('');
+            }}
+            className={`px-6 py-4 border-4 border-dark font-bold transition-all ${
+              associationType === 'new'
+                ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
+                : 'bg-white text-dark hover:bg-bg-light'
+            }`}
+          >
+            <div className="text-base mb-1">New Investigation</div>
+            <div className="text-xs font-normal">Create standalone investigation</div>
+          </button>
+
+          <button
+            onClick={() => setAssociationType('existing')}
+            className={`px-6 py-4 border-4 border-dark font-bold transition-all ${
+              associationType === 'existing'
+                ? 'bg-alert-orange text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
+                : 'bg-white text-dark hover:bg-bg-light'
+            }`}
+          >
+            <div className="text-base mb-1">Link to Existing Topic</div>
+            <div className="text-xs font-normal">Associate with research topic</div>
+          </button>
+        </div>
+
+        {/* Collection & Topic Selection */}
+        {associationType === 'existing' && (
+          <div className="space-y-4 p-4 border-4 border-alert-orange bg-alert-orange/10">
+            <div>
+              <label className="block text-sm font-bold text-dark mb-2">
+                Select Collection *
+              </label>
+              <select
+                value={selectedCollectionId}
+                onChange={(e) => {
+                  setSelectedCollectionId(e.target.value);
+                  setSelectedTopicId(''); // Reset topic when collection changes
+                }}
+                className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-alert-orange"
+              >
+                <option value="">-- Select a collection --</option>
+                {collections.map((collection) => (
+                  <option key={collection.id} value={collection.id}>
+                    {collection.title} ({collection.topics.length} topics)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedCollectionId && (
+              <div>
+                <label className="block text-sm font-bold text-dark mb-2">
+                  Select Topic *
+                </label>
+                <select
+                  value={selectedTopicId}
+                  onChange={(e) => setSelectedTopicId(e.target.value)}
+                  className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-alert-orange"
+                >
+                  <option value="">-- Select a topic --</option>
+                  {collections
+                    .find((c) => c.id === selectedCollectionId)
+                    ?.topics.filter((t) => t.status === 'pending') // Only show pending topics
+                    .map((topic) => (
+                      <option key={topic.id} value={topic.id}>
+                        {topic.title}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-dark/60 mt-2">
+                  Only showing pending topics (not yet linked to an investigation)
+                </p>
+              </div>
+            )}
+
+            {selectedCollectionId && selectedTopicId && (
+              <div className="p-3 border-2 border-cool-blue bg-cool-blue/10">
+                <p className="text-sm text-dark">
+                  ✓ This investigation will be linked to the selected topic and marked as "in-progress"
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </BrutalCard>
+
       {/* Investigation Metadata */}
       <BrutalCard className="mb-6">
-        <h2 className="text-xl font-bold text-dark mb-4">4. Investigation Metadata</h2>
+        <h2 className="text-xl font-bold text-dark mb-4">5. Investigation Metadata</h2>
 
         {processedData && (
           <div className="mb-6 p-4 border-2 border-cool-blue bg-cool-blue/5">
@@ -672,14 +815,26 @@ Example (both engines):
                 ? '⚠️ Investigation title is required'
                 : !investigationData.author
                 ? '⚠️ Author name is required'
+                : associationType === 'existing' && (!selectedCollectionId || !selectedTopicId)
+                ? '⚠️ Select both collection and topic to link investigation'
                 : '✅ All required fields complete - ready to save!'}
             </p>
           </div>
           <button
             onClick={saveInvestigation}
-            disabled={saving || !investigationData.title || !investigationData.author || !resultsText.trim()}
+            disabled={
+              saving ||
+              !investigationData.title ||
+              !investigationData.author ||
+              !resultsText.trim() ||
+              (associationType === 'existing' && (!selectedCollectionId || !selectedTopicId))
+            }
             className={`flex items-center gap-3 px-10 py-5 border-4 border-dark font-bold text-lg transition-all ${
-              saving || !investigationData.title || !investigationData.author || !resultsText.trim()
+              saving ||
+              !investigationData.title ||
+              !investigationData.author ||
+              !resultsText.trim() ||
+              (associationType === 'existing' && (!selectedCollectionId || !selectedTopicId))
                 ? 'bg-gray-300 text-dark/40 cursor-not-allowed'
                 : 'bg-cool-blue text-dark hover:shadow-[8px_8px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-4px] hover:translate-y-[-4px] active:shadow-[2px_2px_0px_0px_rgba(18,18,18,1)] active:translate-x-[2px] active:translate-y-[2px]'
             }`}
