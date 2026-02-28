@@ -9,24 +9,53 @@ import {
 } from '@/lib/investigations';
 import { getReportsByInvestigation } from '@/lib/scrollytellingReports';
 import { ScrollytellingReport } from '@/lib/uploadHtmlReport';
-import { createResearchCollection, addTopicToCollection } from '@/lib/researchCollections';
+import {
+  createResearchCollection,
+  addTopicToCollection,
+  getAllResearchCollections,
+  updateResearchCollection,
+  deleteResearchCollection,
+  updateTopicInCollection,
+  deleteTopicFromCollection,
+  ResearchCollection,
+  ResearchTopic,
+} from '@/lib/researchCollections';
 import { useAuth } from '@/contexts/AuthContext';
-import { Trash2, FileText, Eye, X, ClipboardList } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Trash2, FileText, Eye, X, ClipboardList, Edit, Check, Clock, Circle, Sparkles, Plus, Microscope } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function ResearchRepositoryAdmin() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'investigations' | 'collections'>('investigations');
+
+  // Investigations state
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [loadingInvestigations, setLoadingInvestigations] = useState(true);
   const [viewingInvestigation, setViewingInvestigation] = useState<Investigation | null>(null);
   const [viewingReports, setViewingReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
   const [creatingCollection, setCreatingCollection] = useState(false);
 
+  // Collections state
+  const [collections, setCollections] = useState<ResearchCollection[]>([]);
+  const [loadingCollections, setLoadingCollections] = useState(false);
+  const [expandedCollectionId, setExpandedCollectionId] = useState<string | null>(null);
+  const [editingCollection, setEditingCollection] = useState<ResearchCollection | null>(null);
+  const [editingTopic, setEditingTopic] = useState<{ collectionId: string; topic: ResearchTopic } | null>(null);
 
   useEffect(() => {
-    loadInvestigations();
-  }, []);
+    // Check query param for initial tab
+    const tab = searchParams.get('tab');
+    if (tab === 'collections') {
+      setActiveTab('collections');
+      loadCollections();
+    } else {
+      loadInvestigations();
+    }
+  }, [searchParams]);
 
   const loadInvestigations = async () => {
     setLoadingInvestigations(true);
@@ -137,10 +166,12 @@ export default function ResearchRepositoryAdmin() {
         });
       }
 
-      alert(`✅ Research Collection created with ${topicTitles.length} topics!\n\nRedirecting to Research Planning...`);
+      alert(`✅ Research Collection created with ${topicTitles.length} topics!`);
 
-      // Redirect to Research Planning
-      router.push('/admin/research-planning');
+      // Switch to collections tab and load collections
+      setActiveTab('collections');
+      await loadCollections();
+      setExpandedCollectionId(collectionId);
     } catch (error) {
       console.error('Error creating research collection:', error);
       alert('Failed to create research collection. Please try again.');
@@ -149,13 +180,97 @@ export default function ResearchRepositoryAdmin() {
     }
   };
 
+  // Collections functions
+  const loadCollections = async () => {
+    setLoadingCollections(true);
+    try {
+      const data = await getAllResearchCollections();
+      setCollections(data);
+    } catch (error) {
+      console.error('Error loading collections:', error);
+    } finally {
+      setLoadingCollections(false);
+    }
+  };
+
+  const handleDeleteCollection = async (id: string) => {
+    if (!confirm('Delete this collection? All topics will be lost.')) {
+      return;
+    }
+
+    try {
+      await deleteResearchCollection(id);
+      await loadCollections();
+    } catch (error) {
+      console.error('Error deleting collection:', error);
+      alert('Failed to delete collection.');
+    }
+  };
+
+  const handleToggleTopicStatus = async (collectionId: string, topic: ResearchTopic) => {
+    const statusOrder: Record<string, string> = {
+      'pending': 'in-progress',
+      'in-progress': 'completed',
+      'completed': 'pending',
+    };
+    const newStatus = statusOrder[topic.status] as ResearchTopic['status'];
+
+    try {
+      await updateTopicInCollection(collectionId, topic.id!, {
+        status: newStatus,
+        completedAt: newStatus === 'completed' ? new Date() : undefined,
+      } as any);
+      await loadCollections();
+    } catch (error) {
+      console.error('Error updating topic status:', error);
+    }
+  };
+
+  const handleDeleteTopic = async (collectionId: string, topicId: string) => {
+    if (!confirm('Delete this topic?')) {
+      return;
+    }
+
+    try {
+      await deleteTopicFromCollection(collectionId, topicId);
+      await loadCollections();
+    } catch (error) {
+      console.error('Error deleting topic:', error);
+      alert('Failed to delete topic.');
+    }
+  };
+
+  const handleGenerateGEM = (topicTitle: string) => {
+    localStorage.setItem('gem-query-prefill', topicTitle);
+    router.push('/admin/gem-generator');
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Circle size={16} className="text-dark/40" />;
+      case 'in-progress':
+        return <Clock size={16} className="text-alert-orange" />;
+      case 'completed':
+        return <Check size={16} className="text-cool-blue" />;
+      default:
+        return <Circle size={16} />;
+    }
+  };
+
+  const getProgressPercentage = (topics: ResearchTopic[]) => {
+    if (topics.length === 0) return 0;
+    const completed = topics.filter(t => t.status === 'completed').length;
+    return Math.round((completed / topics.length) * 100);
+  };
+
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-dark mb-2">Research Repository</h1>
         <p className="text-dark/70">
-          View and manage research investigations. Create new investigations from{' '}
+          View and manage research investigations and research collections. Create new investigations from{' '}
           <a href="/admin/process-results" className="text-cool-blue hover:underline font-bold">
             Process Results
           </a>
@@ -163,8 +278,42 @@ export default function ResearchRepositoryAdmin() {
         </p>
       </div>
 
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-dark">All Investigations</h2>
+      {/* Tabs */}
+      <div className="mb-6 flex gap-4">
+        <button
+          onClick={() => {
+            setActiveTab('investigations');
+            if (investigations.length === 0) loadInvestigations();
+          }}
+          className={`px-6 py-3 border-4 border-dark font-bold transition-all ${
+            activeTab === 'investigations'
+              ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
+              : 'bg-white text-dark hover:bg-bg-light'
+          }`}
+        >
+          <Microscope size={20} className="inline mr-2" />
+          Investigations
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('collections');
+            if (collections.length === 0) loadCollections();
+          }}
+          className={`px-6 py-3 border-4 border-dark font-bold transition-all ${
+            activeTab === 'collections'
+              ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)]'
+              : 'bg-white text-dark hover:bg-bg-light'
+          }`}
+        >
+          <ClipboardList size={20} className="inline mr-2" />
+          Collections
+        </button>
+      </div>
+
+      {/* Investigations Tab */}
+      {activeTab === 'investigations' && (
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold text-dark">All Investigations</h2>
 
         {loadingInvestigations ? (
           <BrutalCard>
@@ -256,9 +405,10 @@ export default function ResearchRepositoryAdmin() {
             </BrutalCard>
           ))
         )}
-      </div>
+        </div>
+      )}
 
-      {/* View Modal */}
+      {/* View Modal (shared between tabs) */}
       {viewingInvestigation && (
         <div className="fixed inset-0 bg-dark/50 flex items-center justify-center z-50 p-4 overflow-auto">
           <div className="bg-white border-4 border-dark max-w-4xl w-full max-h-[90vh] overflow-auto my-8">
@@ -476,6 +626,164 @@ export default function ResearchRepositoryAdmin() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Collections Tab */}
+      {activeTab === 'collections' && (
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold text-dark">Research Collections</h2>
+
+          {loadingCollections ? (
+            <BrutalCard>
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-dark border-t-transparent mb-4"></div>
+                <p className="text-dark/60">Loading collections...</p>
+              </div>
+            </BrutalCard>
+          ) : collections.length === 0 ? (
+            <BrutalCard>
+              <div className="text-center py-12">
+                <ClipboardList size={48} className="mx-auto mb-4 text-dark/40" />
+                <p className="text-dark/60 mb-2 text-lg font-bold">No research collections yet.</p>
+                <p className="text-dark/50 mb-6">
+                  Collections are created from investigations to organize deep-dive research topics.
+                </p>
+                <button
+                  onClick={() => setActiveTab('investigations')}
+                  className="px-6 py-3 border-4 border-dark bg-cool-blue text-dark font-bold hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all"
+                >
+                  <Microscope size={20} className="inline mr-2" />
+                  View Investigations
+                </button>
+              </div>
+            </BrutalCard>
+          ) : (
+            <div className="space-y-6">
+              {collections.map((collection) => {
+                const progress = getProgressPercentage(collection.topics);
+                const isExpanded = expandedCollectionId === collection.id;
+
+                return (
+                  <BrutalCard key={collection.id} className="overflow-hidden">
+                    {/* Collection Header */}
+                    <div className="p-6 border-b-4 border-dark">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-2xl font-bold text-dark">{collection.title}</h3>
+                            <div className="px-2 py-1 border-2 border-cool-blue bg-cool-blue/20 text-xs font-bold">
+                              {collection.topics.length} {collection.topics.length === 1 ? 'Topic' : 'Topics'}
+                            </div>
+                          </div>
+                          <p className="text-dark/80 mb-3">{collection.description}</p>
+                          <div className="text-sm text-dark/60">
+                            <span className="font-bold">Source:</span>{' '}
+                            <span className="italic">{collection.sourceInvestigationTitle}</span>
+                          </div>
+                          {collection.notes && (
+                            <p className="text-sm text-dark/60 mt-2 italic">{collection.notes}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleDeleteCollection(collection.id!)}
+                            className="p-2 border-4 border-dark bg-white hover:bg-alert-orange transition-colors"
+                            title="Delete collection"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-bold text-dark">Progress</span>
+                          <span className="text-sm font-bold text-dark">{progress}%</span>
+                        </div>
+                        <div className="h-3 border-4 border-dark bg-white">
+                          <div
+                            className="h-full bg-cool-blue transition-all"
+                            style={{ width: `${progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Toggle Button */}
+                      <button
+                        onClick={() => setExpandedCollectionId(isExpanded ? null : collection.id!)}
+                        className="w-full mt-4 px-4 py-2 border-4 border-dark bg-white hover:bg-bg-light font-bold transition-all"
+                      >
+                        {isExpanded ? '▲ Hide Topics' : '▼ View Topics'}
+                      </button>
+                    </div>
+
+                    {/* Topics List (Collapsible) */}
+                    {isExpanded && (
+                      <div className="p-6 bg-bg-light">
+                        <div className="space-y-3">
+                          {collection.topics.map((topic) => (
+                            <div
+                              key={topic.id}
+                              className="p-4 border-4 border-dark bg-white hover:shadow-[2px_2px_0px_0px_rgba(18,18,18,1)] transition-all"
+                            >
+                              <div className="flex items-start gap-4">
+                                {/* Status Toggle */}
+                                <button
+                                  onClick={() => handleToggleTopicStatus(collection.id!, topic)}
+                                  className="flex-shrink-0 p-2 border-2 border-dark hover:bg-bg-light transition-colors"
+                                  title={`Status: ${topic.status}`}
+                                >
+                                  {getStatusIcon(topic.status)}
+                                </button>
+
+                                {/* Topic Content */}
+                                <div className="flex-1">
+                                  <h4 className="font-bold text-dark mb-1">{topic.title}</h4>
+                                  {topic.notes && (
+                                    <p className="text-sm text-dark/60 mb-2 italic">{topic.notes}</p>
+                                  )}
+                                  <div className="flex items-center gap-2 text-xs text-dark/50">
+                                    <span className="font-medium uppercase">{topic.status}</span>
+                                    {topic.linkedInvestigationTitle && (
+                                      <>
+                                        <span>•</span>
+                                        <span>Linked: {topic.linkedInvestigationTitle}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleGenerateGEM(topic.title)}
+                                    className="px-3 py-2 border-2 border-dark bg-cool-blue text-dark text-sm font-bold hover:bg-white transition-colors"
+                                    title="Generate GEM prompt for this topic"
+                                  >
+                                    <Sparkles size={16} className="inline mr-1" />
+                                    GEM
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteTopic(collection.id!, topic.id!)}
+                                    className="p-2 border-2 border-dark bg-white hover:bg-alert-orange transition-colors"
+                                    title="Delete topic"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </BrutalCard>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

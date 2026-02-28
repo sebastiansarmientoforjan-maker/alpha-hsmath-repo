@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { BrutalCard } from '@/components/ui';
-import { FileText, Database, TrendingUp, AlertTriangle, BarChart3, Microscope, Sparkles, Wand2, Clock, ArrowRight } from 'lucide-react';
+import { FileText, Database, TrendingUp, AlertTriangle, BarChart3, Microscope, Sparkles, Wand2, Clock, ArrowRight, ClipboardList } from 'lucide-react';
 import { getAllReports } from '@/lib/scrollytellingReports';
 import { getAllDecisionLogs } from '@/lib/decisionLogs';
 import { getAllInvestigations, Investigation } from '@/lib/investigations';
@@ -197,7 +197,7 @@ export default function AdminDashboard() {
       {/* Quick Actions */}
       <BrutalCard className="mb-8">
         <h2 className="text-xl font-bold text-dark mb-4">⚡ Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             href="/admin/gem-generator"
             className="flex items-center gap-3 p-4 border-4 border-dark bg-cool-blue hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all group"
@@ -230,6 +230,18 @@ export default function AdminDashboard() {
             <div className="flex-1">
               <div className="font-bold text-dark">View Research</div>
               <div className="text-sm text-dark/70">Browse all investigations</div>
+            </div>
+            <ArrowRight size={20} className="text-dark opacity-0 group-hover:opacity-100 transition-opacity" />
+          </Link>
+
+          <Link
+            href="/admin/research?tab=collections"
+            className="flex items-center gap-3 p-4 border-4 border-dark bg-white hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all group"
+          >
+            <ClipboardList size={24} className="text-dark" />
+            <div className="flex-1">
+              <div className="font-bold text-dark">Research Collections</div>
+              <div className="text-sm text-dark/70">Track research topics</div>
             </div>
             <ArrowRight size={20} className="text-dark opacity-0 group-hover:opacity-100 transition-opacity" />
           </Link>

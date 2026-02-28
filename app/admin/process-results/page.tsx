@@ -268,9 +268,9 @@ export default function ProcessResultsPage() {
         });
       }
 
-      // Close modal and navigate to research planning
+      // Close modal and navigate to research collections tab
       setShowSuccessModal(false);
-      router.push('/admin/research-planning');
+      router.push('/admin/research?tab=collections');
     } catch (error) {
       console.error('Error creating collection:', error);
       alert('Failed to create research collection. Please try again.');
