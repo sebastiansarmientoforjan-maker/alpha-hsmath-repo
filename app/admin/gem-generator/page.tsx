@@ -253,13 +253,69 @@ Generate the mandatory audit table ordered by Score (Highest to Lowest). **Inclu
 
 ---
 
+#### PART 2: SYNTHESIZED RESEARCH NARRATIVE (Structured Analysis)
+
+After completing the Source Reliability Matrix, provide a comprehensive narrative analysis organized into these sections:
+
+**1. EXECUTIVE SUMMARY (2-3 paragraphs)**
+* Concise overview of the research question
+* Primary findings and key takeaways
+* Overall state of the field based on reviewed sources
+
+**2. KEY FINDINGS (Organized by theme/category)**
+
+Use this structure for each major finding:
+
+**• [CATEGORY TAG] Finding Title: Core Statement**
+* Supporting evidence from high-reliability sources [cite: Source #]
+* Quantitative data when available (effect sizes, percentages, statistics)
+* Geographic/contextual variations if relevant
+* Pedagogical implications for Alpha School context
+
+Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY], [TECHNOLOGY], [CURRICULUM DESIGN], [ASSESSMENT], [EQUITY]
+
+**3. METHODOLOGICAL INSIGHTS**
+* Common research approaches identified
+* Quality of evidence base (experimental, correlational, qualitative)
+* Gaps in current research
+* Recommendations for future investigation
+
+**4. PRACTICAL RECOMMENDATIONS FOR ALPHA SCHOOL**
+* Actionable strategies aligned with 2x acceleration model
+* Implementation priorities (High/Medium/Low)
+* Required resources or professional development
+* Expected timeline and success metrics
+
+**5. GEOGRAPHIC & CONTEXTUAL ANALYSIS**
+* Summary of geographic diversity in sources
+* Cultural/systemic variations in findings
+* Applicability to USA High School context
+* International best practices worth adopting
+
+**6. CITATIONS & REFERENCES**
+* Full citation list for all KEEP sources
+* Include: Author(s), Title, Publication, Year, DOI/URL
+* Organized by reliability score or alphabetically
+
+---
+
+**FORMATTING REQUIREMENTS:**
+* Use clear markdown headers (##, ###)
+* Bullet points for lists and findings
+* Bold for emphasis on key terms
+* Include inline citations: [cite: Source Name, Score X.X]
+* Maintain academic tone while being accessible
+* Target length: 1500-2500 words for Part 2
+
+---
+
 **FINAL INSTRUCTIONS:**
 1. Execute ALL phases before responding
-2. DO NOT omit the Source Reliability Matrix
-3. Order sources by Reliability Score (highest to lowest)
-4. Include clear justification for each source
-5. **Verify geographic diversity:** For universal topics, ensure sources from at least 2-3 different continents
-6. Include Country/Region column in the table
+2. DO NOT omit either Part 1 or Part 2
+3. Part 1: Source Reliability Matrix (ordered by score)
+4. Part 2: Synthesized Research Narrative (structured analysis)
+5. Include clear justification for each source
+6. **Verify geographic diversity:** For universal topics, ensure sources from at least 2-3 different continents
 7. **All output must be in ENGLISH**`;
 
     // Gemini-specific optimization
