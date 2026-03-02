@@ -287,6 +287,37 @@ export default function ResearchRepositoryAdmin() {
     }
   };
 
+  const handleSaveCollection = async (collectionId: string, title: string, description: string, notes: string) => {
+    try {
+      await updateResearchCollection(collectionId, {
+        title: title.trim(),
+        description: description.trim(),
+        notes: notes.trim(),
+      });
+      await loadCollections();
+      setEditingCollection(null);
+      toast.showSuccess('Collection updated successfully');
+    } catch (error) {
+      console.error('Error updating collection:', error);
+      toast.showError('Failed to update collection.');
+    }
+  };
+
+  const handleSaveTopic = async (collectionId: string, topicId: string, title: string, notes: string) => {
+    try {
+      await updateTopicInCollection(collectionId, topicId, {
+        title: title.trim(),
+        notes: notes.trim(),
+      });
+      await loadCollections();
+      setEditingTopic(null);
+      toast.showSuccess('Topic updated successfully');
+    } catch (error) {
+      console.error('Error updating topic:', error);
+      toast.showError('Failed to update topic.');
+    }
+  };
+
   const handleToggleTopicStatus = async (collectionId: string, topic: ResearchTopic) => {
     if (!topic.id) {
       console.error('Topic ID is missing:', topic);
@@ -943,6 +974,13 @@ export default function ResearchRepositoryAdmin() {
                         </div>
                         <div className="flex gap-2">
                           <button
+                            onClick={() => setEditingCollection(collection)}
+                            className="p-2 border-4 border-dark bg-cool-blue hover:bg-white transition-colors"
+                            title="Edit collection"
+                          >
+                            <Edit size={20} />
+                          </button>
+                          <button
                             onClick={() => handleDeleteCollection(collection.id!)}
                             className="p-2 border-4 border-dark bg-white hover:bg-alert-orange transition-colors"
                             title="Delete collection"
@@ -1072,6 +1110,13 @@ export default function ResearchRepositoryAdmin() {
                                     GEM
                                   </button>
                                   <button
+                                    onClick={() => setEditingTopic({ collectionId: collection.id!, topic })}
+                                    className="p-2 border-2 border-dark bg-white hover:bg-cool-blue transition-colors"
+                                    title="Edit topic"
+                                  >
+                                    <Edit size={16} />
+                                  </button>
+                                  <button
                                     onClick={() => handleDeleteTopic(collection.id!, topic.id!)}
                                     className="p-2 border-2 border-dark bg-white hover:bg-alert-orange transition-colors"
                                     title="Delete topic"
@@ -1091,6 +1136,182 @@ export default function ResearchRepositoryAdmin() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Edit Collection Modal */}
+      {editingCollection && (
+        <div className="fixed inset-0 bg-dark/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border-4 border-dark max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-dark">Edit Collection</h2>
+              <button
+                onClick={() => setEditingCollection(null)}
+                className="p-2 border-2 border-dark bg-white hover:bg-alert-orange transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                handleSaveCollection(
+                  editingCollection.id!,
+                  formData.get('title') as string,
+                  formData.get('description') as string,
+                  formData.get('notes') as string
+                );
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-bold text-dark mb-2">
+                  Title *
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  defaultValue={editingCollection.title}
+                  required
+                  className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-dark mb-2">
+                  Description *
+                </label>
+                <textarea
+                  name="description"
+                  defaultValue={editingCollection.description}
+                  required
+                  rows={3}
+                  className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-dark mb-2">
+                  Notes (Optional)
+                </label>
+                <textarea
+                  name="notes"
+                  defaultValue={editingCollection.notes || ''}
+                  rows={4}
+                  className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingCollection(null)}
+                  className="px-6 py-3 border-4 border-dark bg-white hover:bg-bg-light font-bold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-3 border-4 border-dark bg-cool-blue text-dark font-bold hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Topic Modal */}
+      {editingTopic && (
+        <div className="fixed inset-0 bg-dark/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border-4 border-dark max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-dark">Edit Topic</h2>
+              <button
+                onClick={() => setEditingTopic(null)}
+                className="p-2 border-2 border-dark bg-white hover:bg-alert-orange transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                handleSaveTopic(
+                  editingTopic.collectionId,
+                  editingTopic.topic.id!,
+                  formData.get('title') as string,
+                  formData.get('notes') as string
+                );
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-bold text-dark mb-2">
+                  Topic Title *
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  defaultValue={editingTopic.topic.title}
+                  required
+                  className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-dark mb-2">
+                  Notes (Optional)
+                </label>
+                <textarea
+                  name="notes"
+                  defaultValue={editingTopic.topic.notes || ''}
+                  rows={4}
+                  placeholder="Add notes about this topic..."
+                  className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                />
+              </div>
+
+              <div className="bg-bg-light border-4 border-dark p-4">
+                <h3 className="text-sm font-bold text-dark mb-2">Linked Investigation</h3>
+                {editingTopic.topic.linkedInvestigationTitle ? (
+                  <div className="flex items-center gap-2">
+                    <span className="flex-1 text-sm text-dark">
+                      {editingTopic.topic.linkedInvestigationTitle}
+                    </span>
+                    <span className="text-xs text-dark/60 px-2 py-1 border-2 border-dark bg-cool-blue">
+                      Linked
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-sm text-dark/60 italic">
+                    No investigation linked yet. Link an investigation from the "Investigations" tab view.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingTopic(null)}
+                  className="px-6 py-3 border-4 border-dark bg-white hover:bg-bg-light font-bold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-3 border-4 border-dark bg-cool-blue text-dark font-bold hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
