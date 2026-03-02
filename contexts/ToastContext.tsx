@@ -14,10 +14,10 @@ interface Toast {
 
 interface ToastContextType {
   showToast: (message: string, type?: ToastType, duration?: number) => void;
-  showSuccess: (message: string) => void;
-  showError: (message: string) => void;
-  showWarning: (message: string) => void;
-  showInfo: (message: string) => void;
+  showSuccess: (message: string, duration?: number) => void;
+  showError: (message: string, duration?: number) => void;
+  showWarning: (message: string, duration?: number) => void;
+  showInfo: (message: string, duration?: number) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -39,10 +39,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const showSuccess = (message: string) => showToast(message, 'success');
-  const showError = (message: string) => showToast(message, 'error', 7000); // Errors stay longer
-  const showWarning = (message: string) => showToast(message, 'warning', 6000);
-  const showInfo = (message: string) => showToast(message, 'info');
+  const showSuccess = (message: string, duration?: number) => showToast(message, 'success', duration);
+  const showError = (message: string, duration?: number) => showToast(message, 'error', duration || 7000); // Errors stay longer
+  const showWarning = (message: string, duration?: number) => showToast(message, 'warning', duration || 6000);
+  const showInfo = (message: string, duration?: number) => showToast(message, 'info', duration);
 
   const dismissToast = (id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
