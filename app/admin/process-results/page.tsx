@@ -13,6 +13,7 @@ import {
   updateTopicInCollection,
   ResearchCollection
 } from '@/lib/researchCollections';
+import { getMostRecentRawResult } from '@/lib/rawResults';
 import { useRouter } from 'next/navigation';
 
 export default function ProcessResultsPage() {
@@ -49,6 +50,48 @@ export default function ProcessResultsPage() {
   const [associationType, setAssociationType] = useState<'new' | 'existing'>('new');
   const [selectedCollectionId, setSelectedCollectionId] = useState<string>('');
   const [selectedTopicId, setSelectedTopicId] = useState<string>('');
+  const [autoLoadedResults, setAutoLoadedResults] = useState(false);
+
+  // Load most recent raw results on mount
+  useEffect(() => {
+    const loadRecentRawResults = async () => {
+      try {
+        const recentResult = await getMostRecentRawResult();
+        if (recentResult) {
+          // Combine Gemini and Perplexity results
+          let combinedResults = '';
+
+          if (recentResult.geminiResults) {
+            combinedResults += '=== GEMINI RESULTS ===\n\n' + recentResult.geminiResults + '\n\n';
+          }
+
+          if (recentResult.perplexityResults) {
+            combinedResults += '=== PERPLEXITY RESULTS ===\n\n' + recentResult.perplexityResults;
+          }
+
+          setResultsText(combinedResults);
+          setSearchQuery(recentResult.searchQuery);
+
+          // Determine which engine was used
+          if (recentResult.geminiResults && recentResult.perplexityResults) {
+            setActiveEngine('both');
+          } else if (recentResult.geminiResults) {
+            setActiveEngine('gemini');
+          } else if (recentResult.perplexityResults) {
+            setActiveEngine('perplexity');
+          }
+
+          setAutoLoadedResults(true);
+        }
+      } catch (error) {
+        console.error('Error loading recent raw results:', error);
+      }
+    };
+
+    if (user) {
+      loadRecentRawResults();
+    }
+  }, [user]);
 
   // Load collections on mount
   useEffect(() => {
@@ -442,7 +485,22 @@ export default function ProcessResultsPage() {
 
       {/* Results Textarea */}
       <BrutalCard className="mb-6">
-        <h2 className="text-xl font-bold text-dark mb-4">3. Paste Research Results</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-dark">3. Paste Research Results</h2>
+          {autoLoadedResults && (
+            <div className="px-3 py-1 border-2 border-cool-blue bg-cool-blue text-xs font-bold">
+              ✓ AUTO-LOADED
+            </div>
+          )}
+        </div>
+        {autoLoadedResults && (
+          <div className="mb-4 p-3 border-2 border-cool-blue bg-cool-blue/10">
+            <p className="text-sm text-dark/80">
+              <strong>✓ Results loaded automatically</strong> from your most recent raw search results.
+              You can edit or replace them if needed.
+            </p>
+          </div>
+        )}
         <textarea
           value={resultsText}
           onChange={(e) => setResultsText(e.target.value)}

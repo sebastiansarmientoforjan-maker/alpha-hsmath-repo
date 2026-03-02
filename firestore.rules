@@ -57,6 +57,12 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Raw Research Results (Gemini/Perplexity outputs)
+    match /rawResearchResults/{resultId} {
+      allow read: if isAlphaSchoolUser();
+      allow create, update, delete: if isAdmin();
+    }
+
     // Default: deny all other access
     match /{document=**} {
       allow read, write: if false;

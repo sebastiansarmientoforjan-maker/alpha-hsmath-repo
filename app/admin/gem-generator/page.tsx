@@ -6,6 +6,7 @@ import { Sparkles, Copy, Check, Download, Save, FileText, Wand2, X, Archive, Tra
 import { saveGemPrompt, getAllGemPrompts, deleteGemPrompt, GemPrompt } from '@/lib/gemPrompts';
 import { useAuth } from '@/contexts/AuthContext';
 import { createInvestigation, ResearchType, MathematicalArea } from '@/lib/investigations';
+import { saveRawResults } from '@/lib/rawResults';
 import { Timestamp } from 'firebase/firestore';
 
 type PromptEngine = 'gemini' | 'perplexity';
@@ -43,6 +44,11 @@ export default function GemGenerator() {
   const [loadingPrompts, setLoadingPrompts] = useState(true);
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
   const [deletingPromptId, setDeletingPromptId] = useState<string | null>(null);
+
+  // Raw Results State
+  const [geminiRawResults, setGeminiRawResults] = useState('');
+  const [perplexityRawResults, setPerplexityRawResults] = useState('');
+  const [savingRawResults, setSavingRawResults] = useState(false);
 
   // Load saved prompts
   useEffect(() => {
@@ -577,6 +583,44 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
     }
   };
 
+  const handleSaveRawResults = async () => {
+    if (!user) {
+      alert('You need to sign in to save raw results.');
+      return;
+    }
+
+    if (!geminiRawResults.trim() && !perplexityRawResults.trim()) {
+      alert('Please paste results from at least one search engine (Gemini or Perplexity).');
+      return;
+    }
+
+    if (!searchQuery.trim()) {
+      alert('Please enter a search query first.');
+      return;
+    }
+
+    try {
+      setSavingRawResults(true);
+      await saveRawResults({
+        searchQuery,
+        geminiResults: geminiRawResults.trim() || undefined,
+        perplexityResults: perplexityRawResults.trim() || undefined,
+        createdBy: user.displayName || user.email || 'Unknown',
+      });
+
+      alert('✅ Raw search results saved successfully!\n\nGo to "Process Results" to process them with Claude and create an investigation.');
+
+      // Clear the raw results fields
+      setGeminiRawResults('');
+      setPerplexityRawResults('');
+    } catch (error) {
+      console.error('Error saving raw results:', error);
+      alert('Failed to save raw results. Please try again.');
+    } finally {
+      setSavingRawResults(false);
+    }
+  };
+
   return (
     <div>
       <div className="mb-8 flex items-start justify-between">
@@ -776,6 +820,81 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
           </div>
         </BrutalCard>
       )}
+
+      {/* Save Raw Results Section */}
+      {generatedPrompts.gemini || generatedPrompts.perplexity ? (
+        <BrutalCard className="mb-8">
+          <h2 className="text-2xl font-bold text-dark mb-4 flex items-center gap-2">
+            <Save size={28} className="text-alert-orange" />
+            Save Raw Search Results
+          </h2>
+          <p className="text-dark/70 mb-6 font-serif">
+            Paste your Gemini and/or Perplexity search results here to save them for later processing.
+            You can then go to <strong>Process Results</strong> to process them with Claude.
+          </p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-dark mb-2">
+                Gemini Results (optional)
+              </label>
+              <textarea
+                value={geminiRawResults}
+                onChange={(e) => setGeminiRawResults(e.target.value)}
+                rows={8}
+                className="w-full border-4 border-dark px-4 py-3 text-dark font-mono text-xs focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                placeholder="Paste complete Gemini Deep Research results here, including:
+- Source Reliability Matrix
+- Key findings and analysis
+- All citations
+- Methodology notes"
+              />
+              <p className="text-xs text-dark/60 mt-1">
+                {geminiRawResults.length} characters • {geminiRawResults.split('\n').length} lines
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-dark mb-2">
+                Perplexity Results (optional)
+              </label>
+              <textarea
+                value={perplexityRawResults}
+                onChange={(e) => setPerplexityRawResults(e.target.value)}
+                rows={8}
+                className="w-full border-4 border-dark px-4 py-3 text-dark font-mono text-xs focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                placeholder="Paste complete Perplexity results here, including:
+- Answer synthesis
+- All citations with links
+- Source analysis"
+              />
+              <p className="text-xs text-dark/60 mt-1">
+                {perplexityRawResults.length} characters • {perplexityRawResults.split('\n').length} lines
+              </p>
+            </div>
+
+            <div className="border-t-4 border-dark pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-dark mb-1">Ready to save?</p>
+                  <p className="text-xs text-dark/60">
+                    Results will be stored and ready for Claude processing in Process Results page.
+                  </p>
+                </div>
+                <BrutalButton
+                  onClick={handleSaveRawResults}
+                  disabled={savingRawResults || (!geminiRawResults.trim() && !perplexityRawResults.trim()) || !searchQuery.trim()}
+                  variant="primary"
+                  className="gap-2 bg-alert-orange border-alert-orange"
+                >
+                  <Save size={16} />
+                  {savingRawResults ? 'Saving...' : 'Save Raw Results'}
+                </BrutalButton>
+              </div>
+            </div>
+          </div>
+        </BrutalCard>
+      ) : null}
 
       {/* Remix to Research Investigation Modal */}
       {showRemixModal && (
