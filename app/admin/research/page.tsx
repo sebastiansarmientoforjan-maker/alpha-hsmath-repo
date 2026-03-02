@@ -23,6 +23,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { WorkflowBreadcrumb } from '@/components/WorkflowBreadcrumb';
+import { ConfirmDeleteModal } from '@/components/ConfirmDeleteModal';
 import { Trash2, FileText, Eye, X, ClipboardList, Edit, Check, Clock, Circle, Sparkles, Plus, Microscope } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Timestamp } from 'firebase/firestore';
@@ -56,6 +57,10 @@ export default function ResearchRepositoryAdmin() {
   const [linkingInvestigation, setLinkingInvestigation] = useState(false);
   const [linkCollectionId, setLinkCollectionId] = useState('');
   const [linkTopicId, setLinkTopicId] = useState('');
+
+  // Delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [investigationToDelete, setInvestigationToDelete] = useState<Investigation | null>(null);
 
   useEffect(() => {
     // Check query param for initial tab
@@ -101,11 +106,45 @@ export default function ResearchRepositoryAdmin() {
   };
 
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteClick = (investigation: Investigation) => {
+    setInvestigationToDelete(investigation);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!investigationToDelete?.id) return;
+
     try {
-      await deleteInvestigation(id);
+      // Find any topics linked to this investigation and revert them to in-progress
+      const linkedTopics = collections.flatMap(collection =>
+        collection.topics
+          ?.filter(topic => topic.linkedInvestigationId === investigationToDelete.id)
+          .map(topic => ({ collectionId: collection.id!, topicId: topic.id!, topic })) || []
+      );
+
+      // Revert linked topics to in-progress
+      for (const { collectionId, topicId } of linkedTopics) {
+        await updateTopicInCollection(collectionId, topicId, {
+          linkedInvestigationId: null,
+          linkedInvestigationTitle: null,
+          status: 'in-progress',
+          completedAt: null,
+        } as any);
+      }
+
+      // Delete the investigation
+      await deleteInvestigation(investigationToDelete.id);
       await loadInvestigations();
-      toast.showSuccess('Investigation deleted successfully');
+
+      // Reload collections if topics were reverted
+      if (linkedTopics.length > 0) {
+        await loadCollections();
+        toast.showSuccess(`Investigation deleted. ${linkedTopics.length} topic(s) reverted to in-progress.`);
+      } else {
+        toast.showSuccess('Investigation deleted successfully');
+      }
+
+      setInvestigationToDelete(null);
     } catch (error) {
       console.error('Failed to delete investigation:', error);
       toast.showError('Failed to delete investigation');
@@ -508,7 +547,7 @@ export default function ResearchRepositoryAdmin() {
                     <Eye size={18} />
                   </button>
                   <button
-                    onClick={() => handleDelete(inv.id!)}
+                    onClick={() => handleDeleteClick(inv)}
                     className="p-2 border-2 border-dark bg-white hover:bg-alert-orange transition-colors"
                     title="Delete investigation"
                   >
@@ -1054,6 +1093,22 @@ export default function ResearchRepositoryAdmin() {
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteModal}
+        title="Delete Investigation?"
+        message="Are you sure you want to delete this investigation? Any topics linked to it will be reverted to in-progress status."
+        itemName={investigationToDelete?.title}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          setShowDeleteModal(false);
+          setInvestigationToDelete(null);
+        }}
+        confirmText="Delete Investigation"
+        cancelText="Cancel"
+        dangerous={true}
+      />
     </div>
   );
 }

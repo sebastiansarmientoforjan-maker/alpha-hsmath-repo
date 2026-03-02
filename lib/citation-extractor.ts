@@ -82,7 +82,7 @@ export function extractPapersAndCitations(resultsText: string): {
   }
 
   // Pattern 5: Source Reliability Matrix (Gemini format)
-  const matrixPattern = /Source Reliability Matrix.*?(?=\n\n|\n#|$)/is;
+  const matrixPattern = /Source Reliability Matrix[\s\S]*?(?=\n\n|\n#|$)/i;
   const matrixMatch = resultsText.match(matrixPattern);
 
   if (matrixMatch) {

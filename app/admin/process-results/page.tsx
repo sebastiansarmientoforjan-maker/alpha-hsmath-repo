@@ -320,7 +320,13 @@ export default function ProcessResultsPage() {
         searchKeywords: searchQuery ? searchQuery.split(/[,\s]+/).filter(k => k.trim()) : investigationData.title.split(/[,\s]+/).filter(k => k.trim()).slice(0, 5),
         databases: ['Google Scholar', 'ERIC', 'ResearchGate', 'Semantic Scholar', 'Academic Sources'],
         paperCount: sourceCount,
-        citationLinks: citations.length > 0 ? citations : undefined,
+        citationLinks: citations.length > 0
+          ? citations.filter(c => c.url).map(c => ({
+              title: c.title,
+              url: c.url!,
+              authors: c.authors
+            }))
+          : undefined,
       });
 
       // Save to workflow context for auto-navigation
