@@ -1,0 +1,88 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function: Check if user is authenticated with @alpha.school email
+    function isAlphaSchoolUser() {
+      return request.auth != null &&
+             request.auth.token.email != null &&
+             request.auth.token.email.matches('.*@alpha\\.school$');
+    }
+
+    // Helper function: Check if user is Sebastian (admin)
+    function isAdmin() {
+      return request.auth != null &&
+             request.auth.token.email == 'sebastian.sarmiento@alpha.school';
+    }
+
+    // TEMPORARY DEBUG: Allow all authenticated users to read everything
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // GEM Prompts Collection
+    match /gemPrompts/{promptId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // Research Repository Collection
+    match /researchItems/{itemId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Decision Logs Collection
+    match /decisionLogs/{logId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Scrollytelling Reports Collection
+    match /scrollytellingReports/{reportId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Stakeholder Approvals Collection
+    match /stakeholderApprovals/{approvalId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Investigations Collection
+    match /investigations/{investigationId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAdmin() &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() > 0 &&
+        request.resource.data.title.size() <= 500 &&
+        request.resource.data.author is string &&
+        request.resource.data.author.size() > 0 &&
+        request.resource.data.author.size() <= 200;
+
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Research Collections (Planning)
+    match /researchCollections/{collectionId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Raw Research Results (Gemini/Perplexity outputs)
+    match /rawResearchResults/{resultId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Default: deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
