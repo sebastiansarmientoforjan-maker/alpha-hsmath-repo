@@ -23,6 +23,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { Trash2, FileText, Eye, X, ClipboardList, Edit, Check, Clock, Circle, Sparkles, Plus, Microscope } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Timestamp } from 'firebase/firestore';
 
 export default function ResearchRepositoryAdmin() {
   const { user } = useAuth();
@@ -47,6 +48,11 @@ export default function ResearchRepositoryAdmin() {
   const [editingTopic, setEditingTopic] = useState<{ collectionId: string; topic: ResearchTopic } | null>(null);
   const [addingTopicToCollection, setAddingTopicToCollection] = useState<string | null>(null);
   const [newTopicTitle, setNewTopicTitle] = useState('');
+
+  // Link existing investigation to topic
+  const [linkingInvestigation, setLinkingInvestigation] = useState(false);
+  const [linkCollectionId, setLinkCollectionId] = useState('');
+  const [linkTopicId, setLinkTopicId] = useState('');
 
   useEffect(() => {
     // Check query param for initial tab
@@ -105,6 +111,12 @@ export default function ResearchRepositoryAdmin() {
 
   const handleView = async (investigation: Investigation) => {
     setViewingInvestigation(investigation);
+
+    // Load collections for linking if not already loaded
+    if (collections.length === 0) {
+      loadCollections();
+    }
+
     if (investigation.id) {
       const reports = await getReportsByInvestigation(investigation.id);
       setViewingReports(reports);
@@ -286,6 +298,52 @@ export default function ResearchRepositoryAdmin() {
     } catch (error) {
       console.error('Error adding topic:', error);
       alert('Failed to add topic.');
+    }
+  };
+
+  const handleLinkInvestigationToTopic = async () => {
+    if (!viewingInvestigation || !linkCollectionId || !linkTopicId) {
+      alert('Please select both collection and topic.');
+      return;
+    }
+
+    if (!viewingInvestigation.id) {
+      alert('Investigation ID is missing.');
+      return;
+    }
+
+    setLinkingInvestigation(true);
+    try {
+      console.log('Linking investigation to topic:', {
+        investigationId: viewingInvestigation.id,
+        collectionId: linkCollectionId,
+        topicId: linkTopicId,
+      });
+
+      await updateTopicInCollection(linkCollectionId, linkTopicId, {
+        linkedInvestigationId: viewingInvestigation.id,
+        linkedInvestigationTitle: viewingInvestigation.title,
+        status: 'completed',
+        completedAt: Timestamp.now(),
+      } as any);
+
+      console.log('Investigation linked successfully, reloading collections...');
+
+      // Reload collections and close modal
+      await loadCollections();
+      setViewingInvestigation(null);
+      setLinkCollectionId('');
+      setLinkTopicId('');
+
+      // Switch to collections tab
+      setActiveTab('collections');
+
+      alert(`✅ Investigation linked to topic!\n\nTopic marked as completed.`);
+    } catch (error) {
+      console.error('Error linking investigation:', error);
+      alert('Failed to link investigation to topic. Please try again.');
+    } finally {
+      setLinkingInvestigation(false);
     }
   };
 
@@ -547,6 +605,90 @@ export default function ResearchRepositoryAdmin() {
                     </>
                   )}
                 </button>
+              </div>
+
+              {/* Link to Existing Topic */}
+              <div className="bg-cool-blue/20 border-4 border-cool-blue p-6 my-6">
+                <h3 className="text-xl font-bold text-dark mb-3 flex items-center gap-2">
+                  <Check size={24} />
+                  Link to Existing Topic
+                </h3>
+                <p className="text-dark/80 mb-4">
+                  Already have a research topic waiting for this investigation? Link it here to mark the topic as completed.
+                </p>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-dark mb-2">
+                      Select Collection
+                    </label>
+                    <select
+                      value={linkCollectionId}
+                      onChange={(e) => {
+                        setLinkCollectionId(e.target.value);
+                        setLinkTopicId(''); // Reset topic when collection changes
+                      }}
+                      className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                    >
+                      <option value="">-- Select a collection --</option>
+                      {collections.map((collection) => (
+                        <option key={collection.id} value={collection.id}>
+                          {collection.title} ({collection.topics.length} topics)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {linkCollectionId && (
+                    <div>
+                      <label className="block text-sm font-bold text-dark mb-2">
+                        Select Topic
+                      </label>
+                      <select
+                        value={linkTopicId}
+                        onChange={(e) => setLinkTopicId(e.target.value)}
+                        className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
+                      >
+                        <option value="">-- Select a topic --</option>
+                        {collections
+                          .find((c) => c.id === linkCollectionId)
+                          ?.topics.filter((t) => t.status === 'in-progress')
+                          .map((topic) => (
+                            <option key={topic.id} value={topic.id}>
+                              {topic.title}
+                            </option>
+                          ))}
+                      </select>
+                      <p className="text-xs text-dark/60 mt-2">
+                        Only showing in-progress topics
+                      </p>
+                    </div>
+                  )}
+
+                  {linkCollectionId && linkTopicId && (
+                    <button
+                      onClick={handleLinkInvestigationToTopic}
+                      disabled={linkingInvestigation}
+                      className={`w-full flex items-center justify-center gap-3 px-6 py-4 border-4 border-dark font-bold text-base transition-all ${
+                        linkingInvestigation
+                          ? 'bg-gray-300 text-dark/40 cursor-not-allowed'
+                          : 'bg-cool-blue text-dark hover:shadow-[6px_6px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-3px] hover:translate-y-[-3px]'
+                      }`}
+                    >
+                      {linkingInvestigation ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-4 border-dark border-t-transparent"></div>
+                          <span>Linking...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check size={20} />
+                          <span>Link Investigation to Topic</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div>
