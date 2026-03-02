@@ -64,8 +64,21 @@ export default function ProcessResultsPage() {
   const [selectedTopicId, setSelectedTopicId] = useState<string>('');
   const [autoLoadedResults, setAutoLoadedResults] = useState(false);
 
-  // Load most recent raw results on mount
+  // Check for clipboard-detected results on mount
   useEffect(() => {
+    const pendingResults = localStorage.getItem('pending-research-results');
+    if (pendingResults) {
+      setResultsText(pendingResults);
+      localStorage.removeItem('pending-research-results');
+      setAutoLoadedResults(true);
+      toast.showSuccess('✨ Clipboard results auto-loaded! Ready to process.', 5000);
+    }
+  }, [toast]);
+
+  // Load most recent raw results on mount (only if clipboard didn't provide any)
+  useEffect(() => {
+    if (autoLoadedResults) return; // Skip if already loaded from clipboard
+
     const loadRecentRawResults = async () => {
       try {
         const recentResult = await getMostRecentRawResult();

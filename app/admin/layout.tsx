@@ -6,11 +6,18 @@ import { FileText, Database, Home, Microscope, ArrowLeft, Users, Sparkles, Archi
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 import { FloatingActionBar } from '@/components/FloatingActionBar';
+import { WorkflowProgressBar } from '@/components/WorkflowProgressBar';
+import { KeyboardShortcutsHelp } from '@/components/KeyboardShortcutsHelp';
+import { ClipboardDetectionNotification } from '@/components/ClipboardDetectionNotification';
+import { useGlobalShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, isAdmin } = useAuth();
+
+  // Enable global keyboard shortcuts
+  useGlobalShortcuts();
 
   // Redirect non-admin users to stakeholders
   useEffect(() => {
@@ -126,10 +133,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8">{children}</main>
+      <main className="flex-1 p-8">
+        {/* Workflow Progress Bar - shown on workflow pages */}
+        {pathname !== '/admin' && <WorkflowProgressBar />}
+        {children}
+      </main>
 
       {/* Floating Action Bar for workflow navigation */}
       <FloatingActionBar />
+
+      {/* Keyboard Shortcuts Help */}
+      <KeyboardShortcutsHelp />
+
+      {/* Clipboard Detection Notification */}
+      <ClipboardDetectionNotification />
     </div>
   );
 }
