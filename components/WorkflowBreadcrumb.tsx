@@ -84,7 +84,7 @@ export function WorkflowBreadcrumb() {
 
           return (
             <div key={idx} className="flex items-center gap-2">
-              {isClickable && !isActive ? (
+              {isClickable && !isActive && step.href ? (
                 <Link href={step.href}>{StepContent}</Link>
               ) : (
                 StepContent
