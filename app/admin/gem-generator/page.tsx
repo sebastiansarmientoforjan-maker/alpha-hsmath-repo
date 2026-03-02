@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { BrutalCard, BrutalButton, BrutalInput } from '@/components/ui';
-import { Sparkles, Copy, Check, Download, Save, FileText, Wand2, X, Archive, Trash2, Calendar } from 'lucide-react';
+import { Sparkles, Copy, Check, Download, Save, FileText, Wand2, X, Archive, Trash2, Calendar, ArrowRight, Zap } from 'lucide-react';
 import { saveGemPrompt, getAllGemPrompts, deleteGemPrompt, GemPrompt } from '@/lib/gemPrompts';
 import { useAuth } from '@/contexts/AuthContext';
 import { createInvestigation, ResearchType, MathematicalArea } from '@/lib/investigations';
@@ -11,6 +12,7 @@ import { authenticatedFetch } from '@/lib/api-client';
 import { sanitizeResearchResults } from '@/lib/sanitize';
 import { useToast } from '@/contexts/ToastContext';
 import { WorkflowBreadcrumb } from '@/components/WorkflowBreadcrumb';
+import { WorkflowManager } from '@/lib/workflow-context';
 import {
   validateBeforeProcessing,
   checkCache,
@@ -24,6 +26,7 @@ type PromptEngine = 'gemini' | 'perplexity';
 export default function GemGenerator() {
   const { user, signInWithGoogle } = useAuth();
   const toast = useToast();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [generatedPrompts, setGeneratedPrompts] = useState<{
     gemini: string;
@@ -33,6 +36,8 @@ export default function GemGenerator() {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showQuickActions, setShowQuickActions] = useState(false);
+  const [lastSavedPromptId, setLastSavedPromptId] = useState<string | null>(null);
   const [showRemixModal, setShowRemixModal] = useState(false);
   const [resultsText, setResultsText] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -410,11 +415,24 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
 
     setSaving(true);
     try {
-      await saveGemPrompt(`[${activeEngine.toUpperCase()}] ${searchQuery}`, getActivePrompt());
+      const promptId = await saveGemPrompt(`[${activeEngine.toUpperCase()}] ${searchQuery}`, getActivePrompt());
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+
+      // Save to workflow context for auto-navigation
+      WorkflowManager.setLastPrompt(
+        promptId,
+        `[${activeEngine.toUpperCase()}] ${searchQuery}`,
+        getActivePrompt(),
+        activeEngine
+      );
+
+      // Show quick actions
+      setLastSavedPromptId(promptId);
+      setShowQuickActions(true);
+
       loadSavedPrompts(); // Reload repository
-      toast.showSuccess(`${activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} prompt saved to repository!`);
+      toast.showSuccess(`Prompt saved! Now run it in ${activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} and come back.`, 6000);
     } catch (error) {
       console.error('Error saving prompt:', error);
       toast.showError('Failed to save prompt. Please try again.');
@@ -826,6 +844,73 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
             </p>
           </div>
         </BrutalCard>
+      )}
+
+      {/* Quick Actions - After Saving Prompt */}
+      {showQuickActions && (
+        <div className="mb-8 border-4 border-cool-blue bg-cool-blue shadow-[8px_8px_0px_0px_rgba(18,18,18,1)] animate-slide-up">
+          <div className="p-6">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="p-3 bg-white border-4 border-dark">
+                <Zap size={32} className="text-dark" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-2xl font-bold text-dark mb-2">🎯 Next: Run Your Research!</h3>
+                <p className="text-dark/90 mb-1">
+                  Your prompt is saved! Now execute it in <strong>{activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'}</strong> and come back with results.
+                </p>
+                <p className="text-sm text-dark/70">
+                  After you get the results, click "I Have Results" below to process them instantly.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowQuickActions(false)}
+                className="p-2 hover:bg-white/20 transition-colors"
+              >
+                <X size={24} className="text-dark" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Open External AI */}
+              <a
+                href={activeEngine === 'gemini'
+                  ? 'https://gemini.google.com'
+                  : 'https://www.perplexity.ai'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-6 border-4 border-dark bg-white hover:bg-dark hover:text-white transition-all group"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xl font-bold">Open {activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'}</h4>
+                  <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
+                </div>
+                <p className="text-sm opacity-80">Execute your research with the prompt you just saved</p>
+              </a>
+
+              {/* Go to Process Results */}
+              <button
+                onClick={() => {
+                  setShowQuickActions(false);
+                  router.push('/admin/process-results');
+                }}
+                className="p-6 border-4 border-dark bg-alert-orange hover:bg-dark text-dark hover:text-white transition-all text-left group"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xl font-bold">I Have Results →</h4>
+                  <Wand2 size={24} className="group-hover:scale-110 transition-transform" />
+                </div>
+                <p className="text-sm opacity-90">Skip to Process Results page to paste & mix your findings</p>
+              </button>
+            </div>
+
+            <div className="mt-4 p-4 border-2 border-dark bg-white/50">
+              <p className="text-xs text-dark/70">
+                💡 <strong>Pro Tip:</strong> Open {activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} in a new tab, paste your prompt, and come back here when done. Your workflow context is saved!
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Save Raw Results Section */}

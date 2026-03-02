@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { FileText, Database, Home, Microscope, ArrowLeft, Users, Sparkles, Archive, AlertTriangle, Wand2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
+import { FloatingActionBar } from '@/components/FloatingActionBar';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -126,6 +127,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main Content */}
       <main className="flex-1 p-8">{children}</main>
+
+      {/* Floating Action Bar for workflow navigation */}
+      <FloatingActionBar />
     </div>
   );
 }
