@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { BrutalCard, BrutalButton } from '@/components/ui';
-import { Sparkles, Save, Wand2, ClipboardList, Eye } from 'lucide-react';
+import { Sparkles, Save, Wand2, ClipboardList, Eye, ArrowRight, Microscope, Database } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createInvestigation, ResearchType, MathematicalArea } from '@/lib/investigations';
 import { Timestamp } from 'firebase/firestore';
+import { WorkflowManager } from '@/lib/workflow-context';
 import {
   createResearchCollection,
   addTopicToCollection,
@@ -290,6 +291,9 @@ export default function ProcessResultsPage() {
         paperCount: sourceCount,
         citationLinks: citations.length > 0 ? citations : undefined,
       });
+
+      // Save to workflow context for auto-navigation
+      WorkflowManager.setLastInvestigation(investigationId, investigationData.title);
 
       // If associating to existing topic, update it
       if (associationType === 'existing' && selectedCollectionId && selectedTopicId) {
@@ -973,75 +977,104 @@ Example (both engines):
         </div>
       </div>
 
-      {/* Success Modal */}
+      {/* Success Modal - Enhanced with Quick Actions */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-dark/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-white border-4 border-dark shadow-[8px_8px_0px_0px_rgba(18,18,18,1)] max-w-2xl w-full p-8 animate-fade-in">
+          <div className="bg-white border-4 border-dark shadow-[8px_8px_0px_0px_rgba(18,18,18,1)] max-w-3xl w-full p-8 animate-fade-in">
+            {/* Success Header */}
             <div className="text-center mb-6">
-              <div className="text-6xl mb-4">✅</div>
+              <div className="text-6xl mb-4">🎯</div>
               <h2 className="text-3xl font-bold text-dark mb-2">Investigation Saved!</h2>
-              <p className="text-dark/70">
-                "{savedInvestigationTitle}" has been added to your Research Repository.
+              <p className="text-dark/70 mb-1">
+                "{savedInvestigationTitle}" is now in your Research Repository.
+              </p>
+              <p className="text-sm text-dark/50">
+                What would you like to do next?
               </p>
             </div>
 
-            <div className="bg-cool-blue/10 border-4 border-cool-blue p-6 mb-6">
-              <h3 className="text-lg font-bold text-dark mb-3 flex items-center gap-2">
-                <ClipboardList size={24} />
-                Next Step: Create a Research Collection?
-              </h3>
-              <p className="text-sm text-dark/80 mb-4">
-                Would you like to create a Research Collection for this investigation?
-                This helps you organize follow-up research and track progress on specific topics.
-              </p>
-              <ul className="text-sm text-dark/70 space-y-2 list-disc list-inside">
-                <li>Add topics manually based on your research goals</li>
-                <li>Track research progress (pending → in-progress → completed)</li>
-                <li>Link the collection back to this investigation</li>
-                <li>Generate GEM prompts directly from topics</li>
-              </ul>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={handleCreateCollectionFromSuccess}
-                disabled={creatingCollection}
-                className={`flex items-center justify-center gap-3 px-6 py-4 border-4 border-dark font-bold text-base transition-all ${
-                  creatingCollection
-                    ? 'bg-gray-300 text-dark/40 cursor-not-allowed'
-                    : 'bg-alert-orange text-dark hover:shadow-[6px_6px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-3px] hover:translate-y-[-3px]'
-                }`}
-              >
-                {creatingCollection ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-4 border-dark border-t-transparent"></div>
-                    <span>Creating...</span>
-                  </>
-                ) : (
-                  <>
-                    <ClipboardList size={20} />
-                    <span>Create Collection</span>
-                  </>
-                )}
-              </button>
-
+            {/* Quick Actions Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {/* View Investigation */}
               <button
                 onClick={() => {
                   setShowSuccessModal(false);
                   router.push('/admin/research');
                 }}
-                className="flex items-center justify-center gap-3 px-6 py-4 border-4 border-dark bg-white text-dark font-bold hover:bg-bg-light transition-all"
+                className="p-6 border-4 border-dark bg-cool-blue hover:bg-dark text-dark hover:text-white transition-all text-left group"
               >
-                <Eye size={20} />
-                <span>View Investigation</span>
+                <div className="flex items-start justify-between mb-2">
+                  <Microscope size={28} />
+                  <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
+                </div>
+                <h3 className="text-xl font-bold mb-1">View Investigation</h3>
+                <p className="text-sm opacity-80">See full details, citations, and findings</p>
+              </button>
+
+              {/* Create Decision Log */}
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  router.push('/admin/decision-logs');
+                }}
+                className="p-6 border-4 border-dark bg-alert-orange hover:bg-dark text-dark hover:text-white transition-all text-left group"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <Database size={28} />
+                  <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
+                </div>
+                <h3 className="text-xl font-bold mb-1">Create Decision Log</h3>
+                <p className="text-sm opacity-90">Document decisions based on this research</p>
+              </button>
+
+              {/* Create Collection */}
+              <button
+                onClick={handleCreateCollectionFromSuccess}
+                disabled={creatingCollection}
+                className={`p-6 border-4 border-dark text-left transition-all ${
+                  creatingCollection
+                    ? 'bg-gray-300 text-dark/40 cursor-not-allowed'
+                    : 'bg-white hover:bg-dark text-dark hover:text-white group'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <ClipboardList size={28} />
+                  {!creatingCollection && <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />}
+                </div>
+                <h3 className="text-xl font-bold mb-1">
+                  {creatingCollection ? 'Creating...' : 'Create Collection'}
+                </h3>
+                <p className="text-sm opacity-80">
+                  {creatingCollection ? 'Setting up your collection...' : 'Organize follow-up topics and research'}
+                </p>
+              </button>
+
+              {/* Start Another */}
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  setResultsText('');
+                  setSearchQuery('');
+                  setProcessedData(null);
+                  toast.showInfo('Ready for new research!');
+                }}
+                className="p-6 border-4 border-dark bg-white hover:bg-dark text-dark hover:text-white transition-all text-left group"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <Sparkles size={28} />
+                  <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
+                </div>
+                <h3 className="text-xl font-bold mb-1">Start Another</h3>
+                <p className="text-sm opacity-80">Process more research results</p>
               </button>
             </div>
 
+            {/* Skip Button */}
             <button
               onClick={() => setShowSuccessModal(false)}
-              className="w-full mt-4 px-6 py-3 border-2 border-dark/20 bg-white text-dark/60 hover:text-dark hover:border-dark transition-all"
+              className="w-full px-6 py-3 border-2 border-dark/20 bg-white text-dark/60 hover:text-dark hover:border-dark transition-all font-medium"
             >
-              Skip for Now
+              Close (I'll decide later)
             </button>
           </div>
         </div>
