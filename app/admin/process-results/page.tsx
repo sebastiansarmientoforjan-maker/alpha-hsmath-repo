@@ -19,6 +19,7 @@ import { authenticatedFetch } from '@/lib/api-client';
 import { sanitizeResearchResults } from '@/lib/sanitize';
 import { useToast } from '@/contexts/ToastContext';
 import { WorkflowBreadcrumb } from '@/components/WorkflowBreadcrumb';
+import { extractPapersAndCitations } from '@/lib/citation-extractor';
 import {
   validateBeforeProcessing,
   checkCache,
@@ -208,20 +209,7 @@ export default function ProcessResultsPage() {
     }
   };
 
-  const extractCitationsFromResults = (text: string) => {
-    const citations: Array<{ title: string; url: string; authors?: string }> = [];
-    const lines = text.split('\n');
-    for (const line of lines) {
-      const urlMatch = line.match(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/);
-      if (urlMatch) {
-        citations.push({
-          title: urlMatch[1],
-          url: urlMatch[2],
-        });
-      }
-    }
-    return citations;
-  };
+  // Smart citation extraction is now handled by lib/citation-extractor.ts
 
   const extractKeyFindings = (text: string) => {
     const sections = [
@@ -271,9 +259,11 @@ export default function ProcessResultsPage() {
         citations = processedData.citations;
         sourceCount = processedData.citations.length;
       } else {
-        citations = extractCitationsFromResults(resultsText);
+        // Use smart extraction for papers and citations
+        const extracted = extractPapersAndCitations(resultsText);
+        citations = extracted.citations;
+        sourceCount = extracted.paperCount; // Now accurately reflects unique papers
         keyFindings = extractKeyFindings(resultsText);
-        sourceCount = (resultsText.match(/\d+\./g) || []).length;
         const engineText = activeEngine === 'gemini'
           ? 'Gemini Deep Research'
           : activeEngine === 'perplexity'
