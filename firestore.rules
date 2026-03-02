@@ -17,8 +17,18 @@ service cloud.firestore {
 
     // GEM Prompts Collection
     match /gemPrompts/{promptId} {
-      allow read: if isAlphaSchoolUser();           // Any @alpha.school can read
-      allow create, update, delete: if isAdmin();    // Only Sebastian can write
+      allow read: if isAlphaSchoolUser();
+
+      // ✅ SECURITY: Field validation for GEM prompts
+      allow create: if isAdmin() &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() > 0 &&
+        request.resource.data.title.size() <= 500 &&
+        request.resource.data.prompt is string &&
+        request.resource.data.prompt.size() > 0 &&
+        request.resource.data.createdAt is timestamp;
+
+      allow update, delete: if isAdmin();
     }
 
     // Research Repository Collection
@@ -48,7 +58,18 @@ service cloud.firestore {
     // Investigations Collection
     match /investigations/{investigationId} {
       allow read: if isAlphaSchoolUser();
-      allow create, update, delete: if isAdmin();
+
+      // ✅ SECURITY: Field validation for investigations
+      allow create: if isAdmin() &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() > 0 &&
+        request.resource.data.title.size() <= 500 &&
+        request.resource.data.author is string &&
+        request.resource.data.author.size() > 0 &&
+        request.resource.data.author.size() <= 200;
+
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // Research Collections (Planning)
@@ -60,7 +81,33 @@ service cloud.firestore {
     // Raw Research Results (Gemini/Perplexity outputs)
     match /rawResearchResults/{resultId} {
       allow read: if isAlphaSchoolUser();
-      allow create, update, delete: if isAdmin();
+
+      // ✅ SECURITY: Strict field validation for create
+      allow create: if isAdmin() &&
+        // Required fields
+        request.resource.data.keys().hasAll(['searchQuery', 'createdAt', 'createdBy']) &&
+        request.resource.data.searchQuery is string &&
+        request.resource.data.searchQuery.size() > 0 &&
+        request.resource.data.searchQuery.size() <= 1000 &&
+        request.resource.data.createdAt is timestamp &&
+        request.resource.data.createdBy is string &&
+        request.resource.data.createdBy.size() > 0 &&
+        request.resource.data.createdBy.size() <= 200 &&
+        // Optional fields validation
+        (!request.resource.data.keys().hasAny(['geminiResults']) ||
+         (request.resource.data.geminiResults is string && request.resource.data.geminiResults.size() <= 500000)) &&
+        (!request.resource.data.keys().hasAny(['perplexityResults']) ||
+         (request.resource.data.perplexityResults is string && request.resource.data.perplexityResults.size() <= 500000)) &&
+        // Ensure at least one result is provided
+        (request.resource.data.keys().hasAny(['geminiResults', 'perplexityResults']));
+
+      // ✅ SECURITY: Only allow updating specific fields
+      allow update: if isAdmin() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          ['searchQuery', 'geminiResults', 'perplexityResults']
+        );
+
+      allow delete: if isAdmin();
     }
 
     // Default: deny all other access

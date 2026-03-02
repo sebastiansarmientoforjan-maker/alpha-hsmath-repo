@@ -3,6 +3,7 @@ import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime';
+import { verifyAuth } from '@/lib/auth-middleware';
 
 const client = new BedrockRuntimeClient({
   region: process.env.AWS_REGION || 'us-east-1',
@@ -56,6 +57,12 @@ GUIDELINES:
 - Use professional academic tone throughout`;
 
 export async function POST(request: NextRequest) {
+  // ✅ SECURITY: Verify authentication
+  const authResult = await verifyAuth(request);
+  if (authResult instanceof NextResponse) {
+    return authResult; // Return error response if auth failed
+  }
+
   try {
     const { resultsText, searchQuery } = await request.json();
 
@@ -127,11 +134,19 @@ Return ONLY valid JSON with the structure specified in the system prompt. No mar
       processed: processedData,
     });
   } catch (error: any) {
-    console.error('Error processing research results:', error);
+    // ✅ SECURITY: Log full error server-side only
+    console.error('[API Error] process-research-results:', {
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString(),
+      userId: authResult.userId,
+    });
+
+    // ✅ SECURITY: Return generic error to client (no details)
     return NextResponse.json(
       {
         error: 'Failed to process research results',
-        details: error.message,
+        // Do NOT include error.message or stack trace
       },
       { status: 500 }
     );

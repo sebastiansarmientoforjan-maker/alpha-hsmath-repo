@@ -14,6 +14,8 @@ import {
   ResearchCollection
 } from '@/lib/researchCollections';
 import { getMostRecentRawResult } from '@/lib/rawResults';
+import { authenticatedFetch } from '@/lib/api-client';
+import { sanitizeResearchResults } from '@/lib/sanitize';
 import { useRouter } from 'next/navigation';
 
 export default function ProcessResultsPage() {
@@ -62,11 +64,13 @@ export default function ProcessResultsPage() {
           let combinedResults = '';
 
           if (recentResult.geminiResults) {
-            combinedResults += '=== GEMINI RESULTS ===\n\n' + recentResult.geminiResults + '\n\n';
+            // ✅ SECURITY: Sanitize results from database
+            combinedResults += '=== GEMINI RESULTS ===\n\n' + sanitizeResearchResults(recentResult.geminiResults) + '\n\n';
           }
 
           if (recentResult.perplexityResults) {
-            combinedResults += '=== PERPLEXITY RESULTS ===\n\n' + recentResult.perplexityResults;
+            // ✅ SECURITY: Sanitize results from database
+            combinedResults += '=== PERPLEXITY RESULTS ===\n\n' + sanitizeResearchResults(recentResult.perplexityResults);
           }
 
           setResultsText(combinedResults);
@@ -117,9 +121,9 @@ export default function ProcessResultsPage() {
 
     setProcessing(true);
     try {
-      const response = await fetch('/api/process-research-results', {
+      // ✅ SECURITY: Use authenticated fetch
+      const response = await authenticatedFetch('/api/process-research-results', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           resultsText,
           searchQuery,

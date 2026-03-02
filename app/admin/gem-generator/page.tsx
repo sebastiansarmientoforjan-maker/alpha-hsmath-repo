@@ -7,6 +7,8 @@ import { saveGemPrompt, getAllGemPrompts, deleteGemPrompt, GemPrompt } from '@/l
 import { useAuth } from '@/contexts/AuthContext';
 import { createInvestigation, ResearchType, MathematicalArea } from '@/lib/investigations';
 import { saveRawResults } from '@/lib/rawResults';
+import { authenticatedFetch } from '@/lib/api-client';
+import { sanitizeResearchResults } from '@/lib/sanitize';
 import { Timestamp } from 'firebase/firestore';
 
 type PromptEngine = 'gemini' | 'perplexity';
@@ -446,9 +448,9 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
 
     setProcessing(true);
     try {
-      const response = await fetch('/api/process-research-results', {
+      // ✅ SECURITY: Use authenticated fetch
+      const response = await authenticatedFetch('/api/process-research-results', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           resultsText,
           searchQuery,
@@ -601,10 +603,11 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
 
     try {
       setSavingRawResults(true);
+      // ✅ SECURITY: Sanitize results before saving
       await saveRawResults({
         searchQuery,
-        geminiResults: geminiRawResults.trim() || undefined,
-        perplexityResults: perplexityRawResults.trim() || undefined,
+        geminiResults: geminiRawResults.trim() ? sanitizeResearchResults(geminiRawResults.trim()) : undefined,
+        perplexityResults: perplexityRawResults.trim() ? sanitizeResearchResults(perplexityRawResults.trim()) : undefined,
         createdBy: user.displayName || user.email || 'Unknown',
       });
 
