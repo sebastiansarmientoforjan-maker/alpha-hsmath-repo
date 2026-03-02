@@ -16,11 +16,20 @@ import {
 import { getMostRecentRawResult } from '@/lib/rawResults';
 import { authenticatedFetch } from '@/lib/api-client';
 import { sanitizeResearchResults } from '@/lib/sanitize';
+import { useToast } from '@/contexts/ToastContext';
+import { WorkflowBreadcrumb } from '@/components/WorkflowBreadcrumb';
+import {
+  validateBeforeProcessing,
+  checkCache,
+  cacheResult,
+  estimateTokenUsage,
+} from '@/lib/api-optimization';
 import { useRouter } from 'next/navigation';
 
 export default function ProcessResultsPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const toast = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeEngine, setActiveEngine] = useState<'gemini' | 'perplexity' | 'both'>('both');
   const [resultsText, setResultsText] = useState('');
@@ -115,7 +124,35 @@ export default function ProcessResultsPage() {
 
   const processWithClaude = async () => {
     if (!resultsText.trim()) {
-      alert('Please paste research results first.');
+      toast.showError('Please paste research results first.');
+      return;
+    }
+
+    // ✅ OPTIMIZATION: Validate input before sending to API
+    const validation = validateBeforeProcessing(resultsText);
+    if (!validation.valid) {
+      toast.showWarning(`${validation.reason}: ${validation.suggestion}`);
+      return;
+    }
+
+    // ✅ OPTIMIZATION: Show token estimate
+    const tokenEstimate = estimateTokenUsage(resultsText);
+    if (tokenEstimate.warning) {
+      toast.showWarning(tokenEstimate.warning);
+    } else {
+      toast.showInfo(`Processing ~${tokenEstimate.estimatedTokens.toLocaleString()} tokens (Est. $${tokenEstimate.estimatedCost})`);
+    }
+
+    // ✅ OPTIMIZATION: Check cache for recent identical requests
+    const cachedData = checkCache(resultsText, searchQuery);
+    if (cachedData) {
+      setProcessedData(cachedData);
+      setInvestigationData(prev => ({
+        ...prev,
+        title: cachedData.suggestedTitle || prev.title,
+        mathematicalArea: (cachedData.suggestedMathArea as MathematicalArea) || prev.mathematicalArea,
+      }));
+      toast.showSuccess('✅ Results loaded from cache (saved API call)');
       return;
     }
 
@@ -138,6 +175,9 @@ export default function ProcessResultsPage() {
 
       setProcessedData(data.processed);
 
+      // ✅ OPTIMIZATION: Cache the result
+      cacheResult(resultsText, searchQuery, data.processed);
+
       // Auto-fill title and math area from Claude suggestions
       setInvestigationData(prev => ({
         ...prev,
@@ -145,10 +185,10 @@ export default function ProcessResultsPage() {
         mathematicalArea: (data.processed.suggestedMathArea as MathematicalArea) || prev.mathematicalArea,
       }));
 
-      alert('✅ Results processed successfully! Title and area auto-filled. Review and edit below before saving.');
-    } catch (error) {
+      toast.showSuccess('✅ Results processed successfully! Title and area auto-filled.');
+    } catch (error: any) {
       console.error('Error processing with Claude:', error);
-      alert('Failed to process results with Claude. Please try again.');
+      toast.showError(error.message || 'Failed to process results with Claude. Please try again.');
     } finally {
       setProcessing(false);
     }
@@ -190,17 +230,17 @@ export default function ProcessResultsPage() {
 
   const saveInvestigation = async () => {
     if (!user) {
-      alert('You need to sign in to create investigations.');
+      toast.showError('You need to sign in to create investigations.');
       return;
     }
 
     if (!resultsText.trim()) {
-      alert('Please paste the research results first.');
+      toast.showError('Please paste the research results first.');
       return;
     }
 
     if (!investigationData.title.trim()) {
-      alert('Please enter an investigation title.');
+      toast.showError('Please enter an investigation title.');
       return;
     }
 
@@ -276,7 +316,7 @@ export default function ProcessResultsPage() {
 
         // Show success message after navigation
         setTimeout(() => {
-          alert(`✅ Investigation saved and linked to topic!\n\nTopic marked as completed.`);
+          toast.showSuccess('Investigation saved and linked to topic! Topic marked as completed.');
         }, 100);
       } else {
         // Save investigation details for success modal (before resetting)
@@ -301,7 +341,7 @@ export default function ProcessResultsPage() {
       setSelectedTopicId('');
     } catch (error) {
       console.error('Error creating investigation:', error);
-      alert('Failed to create investigation. Please try again.');
+      toast.showError('Failed to create investigation. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -378,9 +418,10 @@ export default function ProcessResultsPage() {
       // Close modal and navigate to research collections tab
       setShowSuccessModal(false);
       router.push('/admin/research?tab=collections');
+      toast.showSuccess('Research collection created successfully!');
     } catch (error) {
       console.error('Error creating collection:', error);
-      alert('Failed to create research collection. Please try again.');
+      toast.showError('Failed to create research collection. Please try again.');
     } finally {
       setCreatingCollection(false);
     }
@@ -388,6 +429,9 @@ export default function ProcessResultsPage() {
 
   return (
     <div>
+      {/* Workflow Breadcrumb */}
+      <WorkflowBreadcrumb />
+
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-4xl font-bold text-dark mb-2 flex items-center gap-3">

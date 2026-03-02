@@ -21,6 +21,8 @@ import {
   ResearchTopic,
 } from '@/lib/researchCollections';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { WorkflowBreadcrumb } from '@/components/WorkflowBreadcrumb';
 import { Trash2, FileText, Eye, X, ClipboardList, Edit, Check, Clock, Circle, Sparkles, Plus, Microscope } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Timestamp } from 'firebase/firestore';
@@ -28,6 +30,7 @@ import { Timestamp } from 'firebase/firestore';
 export default function ResearchRepositoryAdmin() {
   const { user } = useAuth();
   const router = useRouter();
+  const toast = useToast();
   const searchParams = useSearchParams();
 
   // Tab state
@@ -398,6 +401,9 @@ export default function ResearchRepositoryAdmin() {
 
   return (
     <div>
+      {/* Workflow Breadcrumb */}
+      <WorkflowBreadcrumb />
+
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-dark mb-2">Research Repository</h1>
         <p className="text-dark/70">

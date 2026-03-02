@@ -9,12 +9,21 @@ import { createInvestigation, ResearchType, MathematicalArea } from '@/lib/inves
 import { saveRawResults } from '@/lib/rawResults';
 import { authenticatedFetch } from '@/lib/api-client';
 import { sanitizeResearchResults } from '@/lib/sanitize';
+import { useToast } from '@/contexts/ToastContext';
+import { WorkflowBreadcrumb } from '@/components/WorkflowBreadcrumb';
+import {
+  validateBeforeProcessing,
+  checkCache,
+  cacheResult,
+  estimateTokenUsage,
+} from '@/lib/api-optimization';
 import { Timestamp } from 'firebase/firestore';
 
 type PromptEngine = 'gemini' | 'perplexity';
 
 export default function GemGenerator() {
   const { user, signInWithGoogle } = useAuth();
+  const toast = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [generatedPrompts, setGeneratedPrompts] = useState<{
     gemini: string;
@@ -128,7 +137,7 @@ export default function GemGenerator() {
       setSavedPrompts(savedPrompts.filter((p) => p.id !== promptId));
     } catch (error) {
       console.error('Error deleting prompt:', error);
-      alert('Failed to delete prompt.');
+      toast.showError('Failed to delete prompt.');
     } finally {
       setDeletingPromptId(null);
     }
@@ -401,7 +410,7 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
           alert(`${activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} prompt saved to repository!`);
         } catch (error) {
           console.error('Error during sign in or save:', error);
-          alert('Failed to sign in or save prompt. Please try again.');
+          toast.showError('Failed to sign in or save prompt. Please try again.');
         }
       }
       return;
@@ -413,10 +422,10 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       loadSavedPrompts(); // Reload repository
-      alert(`${activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} prompt saved to repository!`);
+      toast.showSuccess(`${activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} prompt saved to repository!`);
     } catch (error) {
       console.error('Error saving prompt:', error);
-      alert('Failed to save prompt. Please try again.');
+      toast.showError('Failed to save prompt. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -424,7 +433,7 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
 
   const openRemixModal = () => {
     if (!user) {
-      alert('You need to sign in to create research investigations.');
+      toast.showWarning('You need to sign in to create research investigations.');
       return;
     }
     // Pre-fill with search query
@@ -442,7 +451,7 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
 
   const processWithClaude = async () => {
     if (!resultsText.trim()) {
-      alert('Please paste research results first.');
+      toast.showError('Please paste research results first.');
       return;
     }
 
@@ -467,7 +476,7 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
       alert('✅ Results processed successfully! Review the synthesized findings below.');
     } catch (error) {
       console.error('Error processing with Claude:', error);
-      alert('Failed to process results with Claude. Please try again.');
+      toast.showError('Failed to process results with Claude. Please try again.');
     } finally {
       setProcessing(false);
     }
@@ -516,12 +525,12 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
 
   const saveRemixToInvestigation = async () => {
     if (!user) {
-      alert('You need to sign in to create investigations.');
+      toast.showWarning('You need to sign in to create investigations.');
       return;
     }
 
     if (!resultsText.trim()) {
-      alert('Please paste the research results from Gemini/Perplexity first.');
+      toast.showError('Please paste the research results from Gemini/Perplexity first.');
       return;
     }
 
@@ -565,7 +574,7 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
         citationLinks: citations.length > 0 ? citations : undefined,
       });
 
-      alert('✅ Research Investigation created successfully!\n\nCheck Research Repository to view your investigation.');
+      toast.showSuccess('Research Investigation created successfully! Check Research Repository to view it.');
       setShowRemixModal(false);
       // Reset form
       setRemixData({
@@ -579,7 +588,7 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
       setProcessedData(null);
     } catch (error) {
       console.error('Error creating investigation:', error);
-      alert('Failed to create investigation. Please try again.');
+      toast.showError('Failed to create investigation. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -587,17 +596,17 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
 
   const handleSaveRawResults = async () => {
     if (!user) {
-      alert('You need to sign in to save raw results.');
+      toast.showWarning('You need to sign in to save raw results.');
       return;
     }
 
     if (!geminiRawResults.trim() && !perplexityRawResults.trim()) {
-      alert('Please paste results from at least one search engine (Gemini or Perplexity).');
+      toast.showError('Please paste results from at least one search engine (Gemini or Perplexity).');
       return;
     }
 
     if (!searchQuery.trim()) {
-      alert('Please enter a search query first.');
+      toast.showError('Please enter a search query first.');
       return;
     }
 
@@ -611,14 +620,14 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
         createdBy: user.displayName || user.email || 'Unknown',
       });
 
-      alert('✅ Raw search results saved successfully!\n\nGo to "Process Results" to process them with Claude and create an investigation.');
+      toast.showSuccess('Raw search results saved successfully! Go to "Process Results" to process them with Claude.');
 
       // Clear the raw results fields
       setGeminiRawResults('');
       setPerplexityRawResults('');
     } catch (error) {
       console.error('Error saving raw results:', error);
-      alert('Failed to save raw results. Please try again.');
+      toast.showError('Failed to save raw results. Please try again.');
     } finally {
       setSavingRawResults(false);
     }
@@ -626,6 +635,9 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
 
   return (
     <div>
+      {/* Workflow Breadcrumb */}
+      <WorkflowBreadcrumb />
+
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-4xl font-bold text-dark mb-2 flex items-center gap-3">
