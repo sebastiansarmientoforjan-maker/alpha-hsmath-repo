@@ -4,8 +4,11 @@ import { useState, useEffect } from 'react';
 import { BrutalCard, BrutalButton } from '@/components/ui';
 import { Archive, Copy, Trash2, Check, Calendar, FileText } from 'lucide-react';
 import { getAllGemPrompts, deleteGemPrompt, GemPrompt } from '@/lib/gemPrompts';
+import { useToast } from '@/contexts/ToastContext';
+import { WorkflowBreadcrumb } from '@/components/WorkflowBreadcrumb';
 
 export default function PromptRepository() {
+  const toast = useToast();
   const [prompts, setPrompts] = useState<(GemPrompt & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -21,7 +24,7 @@ export default function PromptRepository() {
       setPrompts(allPrompts);
     } catch (error) {
       console.error('Error loading prompts:', error);
-      alert('Failed to load prompts');
+      toast.showError('Failed to load prompts');
     } finally {
       setLoading(false);
     }
@@ -31,20 +34,18 @@ export default function PromptRepository() {
     navigator.clipboard.writeText(content);
     setCopiedId(promptId);
     setTimeout(() => setCopiedId(null), 2000);
+    toast.showSuccess('Prompt copied to clipboard!');
   };
 
   const handleDelete = async (promptId: string) => {
-    if (!confirm('Are you sure you want to delete this prompt? This action cannot be undone.')) {
-      return;
-    }
-
     setDeletingId(promptId);
     try {
       await deleteGemPrompt(promptId);
       setPrompts(prompts.filter((p) => p.id !== promptId));
+      toast.showSuccess('Prompt deleted successfully');
     } catch (error) {
       console.error('Error deleting prompt:', error);
-      alert('Failed to delete prompt. Please try again.');
+      toast.showError('Failed to delete prompt. Please try again.');
     } finally {
       setDeletingId(null);
     }
@@ -72,6 +73,8 @@ export default function PromptRepository() {
 
   return (
     <div>
+      <WorkflowBreadcrumb />
+
       <div className="mb-6">
         <h1 className="text-4xl font-bold text-dark mb-2 flex items-center gap-3">
           <Archive size={36} className="text-cool-blue" />

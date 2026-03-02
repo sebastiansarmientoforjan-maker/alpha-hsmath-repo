@@ -22,8 +22,11 @@ import { DecisionLogDetail } from '@/components/ui/DecisionLogDetail';
 import { Edit, Trash2, Plus, Save, X, FileText, Link as LinkIcon, Microscope, Eye } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useToast } from '@/contexts/ToastContext';
+import { WorkflowBreadcrumb } from '@/components/WorkflowBreadcrumb';
 
 export default function DecisionLogsAdmin() {
+  const toast = useToast();
   const [logs, setLogs] = useState<DecisionLog[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -126,26 +129,24 @@ export default function DecisionLogsAdmin() {
       await linkInvestigationToDecision(logId, investigationId);
       await loadLogs();
       setShowLinkInvestigationModal(null);
-      alert('Investigation linked successfully!');
+      toast.showSuccess('Investigation linked successfully!');
     } catch (error) {
       console.error('Failed to link investigation:', error);
-      alert('Failed to link investigation. Please try again.');
+      toast.showError('Failed to link investigation. Please try again.');
     }
   };
 
   const handleUnlinkInvestigation = async (logId: string, investigationId: string) => {
-    if (!confirm('Are you sure you want to unlink this investigation?')) return;
-
     try {
       await unlinkInvestigationFromDecision(logId, investigationId);
       await loadLogs();
       if (selectedLog?.id === logId) {
         await loadLinkedInvestigations(logId);
       }
-      alert('Investigation unlinked successfully!');
+      toast.showSuccess('Investigation unlinked successfully!');
     } catch (error) {
       console.error('Failed to unlink investigation:', error);
-      alert('Failed to unlink investigation. Please try again.');
+      toast.showError('Failed to unlink investigation. Please try again.');
     }
   };
 
@@ -155,32 +156,30 @@ export default function DecisionLogsAdmin() {
       await loadLogs();
       await loadAllReports();
       setShowAttachModal(null);
-      alert('Report attached successfully!');
+      toast.showSuccess('Report attached successfully!');
     } catch (error) {
       console.error('Failed to attach report:', error);
-      alert('Failed to attach report. Please try again.');
+      toast.showError('Failed to attach report. Please try again.');
     }
   };
 
   const handleDetachReport = async (reportId: string) => {
     if (!selectedLog?.id) return;
 
-    if (!confirm('Are you sure you want to detach this report?')) return;
-
     try {
       await detachReportFromDecision(selectedLog.id, reportId);
       await loadLogs();
       await loadLogReports(selectedLog.id);
-      alert('Report detached successfully!');
+      toast.showSuccess('Report detached successfully!');
     } catch (error) {
       console.error('Failed to detach report:', error);
-      alert('Failed to detach report. Please try again.');
+      toast.showError('Failed to detach report. Please try again.');
     }
   };
 
   const parseDocumentationText = () => {
     if (!rawDocText.trim()) {
-      alert('Please paste documentation text first');
+      toast.showWarning('Please paste documentation text first');
       return;
     }
 
@@ -272,7 +271,7 @@ export default function DecisionLogsAdmin() {
 
   const generateScrollytelling = async () => {
     if (!generatedJSON) {
-      alert('No decision log to generate scrollytelling from');
+      toast.showWarning('No decision log to generate scrollytelling from');
       return;
     }
 
@@ -324,23 +323,23 @@ export default function DecisionLogsAdmin() {
       // Step 4: NOW set the HTML to show success message (AFTER Firestore save)
       setScrollytellingHTML(data.html);
 
-      // Reset state BEFORE showing alert to avoid blocking
+      // Reset state BEFORE showing toast to avoid blocking
       setIsGeneratingScrolly(false);
 
       // Now show success message
-      alert(`✅ ScrollyTelling HTML generated and saved!\n\nStatus: Draft (pending approval)\nTokens: Input ${data.usage.inputTokens.toLocaleString()} | Output ${data.usage.outputTokens.toLocaleString()}\n\nThe report has been saved to Firestore and will be linked to this decision when you save.\n\nGo to Scrollytelling Reports to view and approve.`);
+      toast.showSuccess(`ScrollyTelling HTML generated and saved as Draft! Input: ${data.usage.inputTokens.toLocaleString()} tokens | Output: ${data.usage.outputTokens.toLocaleString()} tokens`, 10000);
     } catch (error: any) {
       console.error('❌ ScrollyTelling generation error:', error);
       console.error('Error stack:', error.stack);
       setAiError(error.message || 'Failed to generate scrollytelling');
       setIsGeneratingScrolly(false); // Reset state on error too
-      alert(`❌ Error: ${error.message}`);
+      toast.showError(`Error: ${error.message}`);
     }
   };
 
   const saveFromGeneratedJSON = async () => {
     if (!generatedJSON) {
-      alert('No JSON to save');
+      toast.showWarning('No JSON to save');
       return;
     }
 
@@ -352,7 +351,7 @@ export default function DecisionLogsAdmin() {
         try {
           dataToSave = JSON.parse(jsonText);
         } catch (e) {
-          alert('Invalid JSON. Please fix syntax errors.');
+          toast.showError('Invalid JSON. Please fix syntax errors.');
           setLoading(false);
           return;
         }
@@ -385,18 +384,18 @@ export default function DecisionLogsAdmin() {
       await loadLogs();
       resetWizard();
 
-      let successMessage = `✅ Decision log saved successfully!`;
+      let successMessage = `Decision log saved successfully!`;
       if (selectedInvestigationIds.length > 0) {
-        successMessage += `\nLinked to ${selectedInvestigationIds.length} investigation(s).`;
+        successMessage += ` Linked to ${selectedInvestigationIds.length} investigation(s).`;
       }
       if (generatedScrollytellingId) {
-        successMessage += `\n\n📊 ScrollyTelling report linked! Go to Scrollytelling Reports to approve and publish.`;
+        successMessage += ` ScrollyTelling report linked!`;
       }
 
-      alert(successMessage);
+      toast.showSuccess(successMessage, 8000);
     } catch (error) {
       console.error('Failed to save log:', error);
-      alert('Failed to save. Make sure Firebase is configured correctly.');
+      toast.showError('Failed to save. Make sure Firebase is configured correctly.');
     } finally {
       setLoading(false);
     }
@@ -452,10 +451,10 @@ export default function DecisionLogsAdmin() {
 
       await loadLogs();
       resetForm();
-      alert(`Decision log saved successfully!${selectedInvestigationIds.length > 0 ? ` Linked to ${selectedInvestigationIds.length} investigation(s).` : ''}`);
+      toast.showSuccess(`Decision log saved successfully!${selectedInvestigationIds.length > 0 ? ` Linked to ${selectedInvestigationIds.length} investigation(s).` : ''}`);
     } catch (error) {
       console.error('Failed to save log:', error);
-      alert('Failed to save. Make sure Firebase is configured correctly.');
+      toast.showError('Failed to save. Make sure Firebase is configured correctly.');
     } finally {
       setLoading(false);
     }
@@ -476,19 +475,19 @@ export default function DecisionLogsAdmin() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this decision log?')) return;
-
     try {
       await deleteDecisionLog(id);
       await loadLogs();
+      toast.showSuccess('Decision log deleted successfully');
     } catch (error) {
       console.error('Failed to delete log:', error);
+      toast.showError('Failed to delete log');
     }
   };
 
   const generateScrollytellingForEdit = async () => {
     if (!editingId) {
-      alert('No decision log to generate scrollytelling from');
+      toast.showWarning('No decision log to generate scrollytelling from');
       return;
     }
 
@@ -543,14 +542,14 @@ export default function DecisionLogsAdmin() {
       );
 
       console.log('✅ Report uploaded, ID:', reportId);
-      alert(`✨ ScrollyTelling report generated and saved as Draft!\nReport ID: ${reportId}\n\nInput: ${data.usage.inputTokens} tokens | Output: ${data.usage.outputTokens} tokens`);
+      toast.showSuccess(`ScrollyTelling report generated and saved as Draft! Report ID: ${reportId}. Input: ${data.usage.inputTokens} tokens | Output: ${data.usage.outputTokens} tokens`, 10000);
 
       // Reload logs to show updated report count
       await loadLogs();
     } catch (error: any) {
       console.error('ScrollyTelling generation error:', error);
       setAiError(error.message || 'Failed to generate scrollytelling');
-      alert(`Error generating ScrollyTelling: ${error.message}`);
+      toast.showError(`Error generating ScrollyTelling: ${error.message}`);
     } finally {
       setIsGeneratingScrolly(false);
     }
@@ -560,6 +559,8 @@ export default function DecisionLogsAdmin() {
 
   return (
     <div>
+      <WorkflowBreadcrumb />
+
       {selectedLog && (
         <DecisionLogDetail
           log={selectedLog}
@@ -1060,7 +1061,7 @@ Students showed 2.3x faster progression when mastering vertex form first...`}
                       onClick={() => {
                         setIsGeneratingScrolly(false);
                         setScrollytellingHTML(null);
-                        alert('✅ Reset complete. You can try again.');
+                        toast.showInfo('Reset complete. You can try again.');
                       }}
                       variant="secondary"
                       className="bg-alert-orange border-alert-orange"

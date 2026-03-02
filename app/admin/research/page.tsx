@@ -102,13 +102,13 @@ export default function ResearchRepositoryAdmin() {
 
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this investigation?')) return;
-
     try {
       await deleteInvestigation(id);
       await loadInvestigations();
+      toast.showSuccess('Investigation deleted successfully');
     } catch (error) {
       console.error('Failed to delete investigation:', error);
+      toast.showError('Failed to delete investigation');
     }
   };
 
@@ -183,12 +183,12 @@ export default function ResearchRepositoryAdmin() {
 
   const handleCreateResearchCollection = async (investigation: Investigation) => {
     if (!user) {
-      alert('Please sign in to create research collections.');
+      toast.showWarning('Please sign in to create research collections.');
       return;
     }
 
     if (!investigation.id) {
-      alert('Investigation ID is missing.');
+      toast.showError('Investigation ID is missing.');
       return;
     }
 
@@ -213,10 +213,10 @@ export default function ResearchRepositoryAdmin() {
       setExpandedCollectionId(collectionId);
 
       // Show success message
-      alert(`✅ Research Collection created!\n\nYou can now add topics manually.`);
+      toast.showSuccess('Research Collection created! You can now add topics manually.');
     } catch (error) {
       console.error('Error creating research collection:', error);
-      alert('Failed to create research collection. Please try again.');
+      toast.showError('Failed to create research collection. Please try again.');
     } finally {
       setCreatingCollection(false);
     }
@@ -238,23 +238,20 @@ export default function ResearchRepositoryAdmin() {
   };
 
   const handleDeleteCollection = async (id: string) => {
-    if (!confirm('Delete this collection? All topics will be lost.')) {
-      return;
-    }
-
     try {
       await deleteResearchCollection(id);
       await loadCollections();
+      toast.showSuccess('Collection deleted successfully');
     } catch (error) {
       console.error('Error deleting collection:', error);
-      alert('Failed to delete collection.');
+      toast.showError('Failed to delete collection.');
     }
   };
 
   const handleToggleTopicStatus = async (collectionId: string, topic: ResearchTopic) => {
     if (!topic.id) {
       console.error('Topic ID is missing:', topic);
-      alert('Error: Topic ID is missing. Cannot update status.');
+      toast.showError('Error: Topic ID is missing. Cannot update status.');
       return;
     }
 
@@ -288,29 +285,27 @@ export default function ResearchRepositoryAdmin() {
 
       console.log('Status updated successfully, reloading collections...');
       await loadCollections();
+      toast.showInfo(`Topic marked as ${newStatus}`);
     } catch (error) {
       console.error('Error updating topic status:', error);
-      alert('Failed to update topic status. Check console for details.');
+      toast.showError('Failed to update topic status. Check console for details.');
     }
   };
 
   const handleDeleteTopic = async (collectionId: string, topicId: string) => {
-    if (!confirm('Delete this topic?')) {
-      return;
-    }
-
     try {
       await deleteTopicFromCollection(collectionId, topicId);
       await loadCollections();
+      toast.showSuccess('Topic deleted successfully');
     } catch (error) {
       console.error('Error deleting topic:', error);
-      alert('Failed to delete topic.');
+      toast.showError('Failed to delete topic.');
     }
   };
 
   const handleAddTopic = async (collectionId: string) => {
     if (!newTopicTitle.trim()) {
-      alert('Please enter a topic title.');
+      toast.showWarning('Please enter a topic title.');
       return;
     }
 
@@ -322,20 +317,21 @@ export default function ResearchRepositoryAdmin() {
       await loadCollections();
       setNewTopicTitle('');
       setAddingTopicToCollection(null);
+      toast.showSuccess('Topic added successfully!');
     } catch (error) {
       console.error('Error adding topic:', error);
-      alert('Failed to add topic.');
+      toast.showError('Failed to add topic.');
     }
   };
 
   const handleLinkInvestigationToTopic = async () => {
     if (!viewingInvestigation || !linkCollectionId || !linkTopicId) {
-      alert('Please select both collection and topic.');
+      toast.showWarning('Please select both collection and topic.');
       return;
     }
 
     if (!viewingInvestigation.id) {
-      alert('Investigation ID is missing.');
+      toast.showError('Investigation ID is missing.');
       return;
     }
 
@@ -365,10 +361,10 @@ export default function ResearchRepositoryAdmin() {
       // Switch to collections tab
       setActiveTab('collections');
 
-      alert(`✅ Investigation linked to topic!\n\nTopic marked as completed.`);
+      toast.showSuccess('Investigation linked to topic! Topic marked as completed.');
     } catch (error) {
       console.error('Error linking investigation:', error);
-      alert('Failed to link investigation to topic. Please try again.');
+      toast.showError('Failed to link investigation to topic. Please try again.');
     } finally {
       setLinkingInvestigation(false);
     }

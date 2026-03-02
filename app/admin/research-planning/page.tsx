@@ -17,10 +17,13 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Edit, Trash2, Check, Clock, Circle, Sparkles, ExternalLink, X, ClipboardList } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/contexts/ToastContext';
+import { WorkflowBreadcrumb } from '@/components/WorkflowBreadcrumb';
 
 export default function ResearchPlanningPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const toast = useToast();
   const [collections, setCollections] = useState<ResearchCollection[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCollectionForm, setShowCollectionForm] = useState(false);
@@ -68,17 +71,17 @@ export default function ResearchPlanningPage() {
 
   const handleSaveCollection = async () => {
     if (!user) {
-      alert('Please sign in to edit collections.');
+      toast.showWarning('Please sign in to edit collections.');
       return;
     }
 
     if (!collectionForm.title.trim()) {
-      alert('Please enter a collection title.');
+      toast.showWarning('Please enter a collection title.');
       return;
     }
 
     if (!editingCollection) {
-      alert('Collections can only be created from investigations.');
+      toast.showWarning('Collections can only be created from investigations.');
       return;
     }
 
@@ -90,9 +93,10 @@ export default function ResearchPlanningPage() {
       });
       await loadCollections();
       resetCollectionForm();
+      toast.showSuccess('Collection updated successfully!');
     } catch (error) {
       console.error('Error saving collection:', error);
-      alert('Failed to save collection.');
+      toast.showError('Failed to save collection.');
     }
   };
 
@@ -107,22 +111,19 @@ export default function ResearchPlanningPage() {
   };
 
   const handleDeleteCollection = async (id: string) => {
-    if (!confirm('Delete this collection? All topics will be lost.')) {
-      return;
-    }
-
     try {
       await deleteResearchCollection(id);
       await loadCollections();
+      toast.showSuccess('Collection deleted successfully');
     } catch (error) {
       console.error('Error deleting collection:', error);
-      alert('Failed to delete collection.');
+      toast.showError('Failed to delete collection.');
     }
   };
 
   const handleSaveTopic = async (collectionId: string) => {
     if (!topicForm.title.trim()) {
-      alert('Please enter a topic title.');
+      toast.showWarning('Please enter a topic title.');
       return;
     }
 
@@ -132,18 +133,20 @@ export default function ResearchPlanningPage() {
           title: topicForm.title,
           notes: topicForm.notes,
         });
+        toast.showSuccess('Topic updated successfully!');
       } else {
         await addTopicToCollection(collectionId, {
           title: topicForm.title,
           status: 'pending',
           notes: topicForm.notes,
         });
+        toast.showSuccess('Topic added successfully!');
       }
       await loadCollections();
       resetTopicForm();
     } catch (error) {
       console.error('Error saving topic:', error);
-      alert('Failed to save topic.');
+      toast.showError('Failed to save topic.');
     }
   };
 
@@ -157,16 +160,13 @@ export default function ResearchPlanningPage() {
   };
 
   const handleDeleteTopic = async (collectionId: string, topicId: string) => {
-    if (!confirm('Delete this topic?')) {
-      return;
-    }
-
     try {
       await deleteTopicFromCollection(collectionId, topicId);
       await loadCollections();
+      toast.showSuccess('Topic deleted successfully');
     } catch (error) {
       console.error('Error deleting topic:', error);
-      alert('Failed to delete topic.');
+      toast.showError('Failed to delete topic.');
     }
   };
 
@@ -182,9 +182,10 @@ export default function ResearchPlanningPage() {
       }
       await updateTopicInCollection(collectionId, topicId, updates);
       await loadCollections();
+      toast.showInfo(`Topic marked as ${newStatus}`);
     } catch (error) {
       console.error('Error updating topic status:', error);
-      alert('Failed to update topic status.');
+      toast.showError('Failed to update topic status.');
     }
   };
 
@@ -224,6 +225,8 @@ export default function ResearchPlanningPage() {
 
   return (
     <div>
+      <WorkflowBreadcrumb />
+
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-dark mb-2">Research Planning</h1>
         <p className="text-dark/70">

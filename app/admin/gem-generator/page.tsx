@@ -127,14 +127,11 @@ export default function GemGenerator() {
   };
 
   const handleDeletePrompt = async (promptId: string) => {
-    if (!confirm('Are you sure you want to delete this prompt?')) {
-      return;
-    }
-
     setDeletingPromptId(promptId);
     try {
       await deleteGemPrompt(promptId);
       setSavedPrompts(savedPrompts.filter((p) => p.id !== promptId));
+      toast.showSuccess('Prompt deleted successfully');
     } catch (error) {
       console.error('Error deleting prompt:', error);
       toast.showError('Failed to delete prompt.');
@@ -164,12 +161,11 @@ export default function GemGenerator() {
 
   // Draft management
   const clearDraft = () => {
-    if (confirm('Clear draft? This will remove your saved work.')) {
-      setSearchQuery('');
-      setGeneratedPrompts({ gemini: '', perplexity: '' });
-      setActiveEngine('gemini');
-      localStorage.removeItem('gem-generator-draft');
-    }
+    setSearchQuery('');
+    setGeneratedPrompts({ gemini: '', perplexity: '' });
+    setActiveEngine('gemini');
+    localStorage.removeItem('gem-generator-draft');
+    toast.showInfo('Draft cleared. Starting fresh!');
   };
 
   const hasDraft = searchQuery || generatedPrompts.gemini || generatedPrompts.perplexity;
@@ -469,7 +465,7 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
       }
 
       setProcessedData(data.processed);
-      alert('✅ Results processed successfully! Review the synthesized findings below.');
+      toast.showSuccess('Results processed successfully! Review the synthesized findings below.');
     } catch (error) {
       console.error('Error processing with Claude:', error);
       toast.showError('Failed to process results with Claude. Please try again.');

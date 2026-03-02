@@ -348,18 +348,17 @@ export default function ProcessResultsPage() {
   };
 
   const resetAll = () => {
-    if (confirm('Reset all fields and start over? This will clear all your work.')) {
-      setResultsText('');
-      setSearchQuery('');
-      setProcessedData(null);
-      setInvestigationData({
-        title: '',
-        researchType: 'Systematic Literature Review',
-        mathematicalArea: 'Algebra',
-        author: user?.displayName || user?.email || '',
-      });
-      setActiveEngine('both');
-    }
+    setResultsText('');
+    setSearchQuery('');
+    setProcessedData(null);
+    setInvestigationData({
+      title: '',
+      researchType: 'Systematic Literature Review',
+      mathematicalArea: 'Algebra',
+      author: user?.displayName || user?.email || '',
+    });
+    setActiveEngine('both');
+    toast.showInfo('All fields reset. Starting fresh!');
   };
 
   const extractTopicsFromKeyFindings = (keyFindings: string | any): string[] => {
@@ -605,9 +604,8 @@ Example (both engines):
             {resultsText.trim() && (
               <button
                 onClick={() => {
-                  if (confirm('Clear all results? This will remove the pasted text.')) {
-                    setResultsText('');
-                  }
+                  setResultsText('');
+                  toast.showInfo('Results cleared');
                 }}
                 className="px-6 py-5 border-4 border-dark bg-white text-dark font-bold hover:bg-bg-light transition-all"
                 title="Clear results"

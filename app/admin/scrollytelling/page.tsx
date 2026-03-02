@@ -7,8 +7,11 @@ import { getAllDecisionLogs, DecisionLog } from '@/lib/decisionLogs';
 import { getAllInvestigations, Investigation } from '@/lib/investigations';
 import { getAllReports, updateReport, deleteReport } from '@/lib/scrollytellingReports';
 import { Edit, Trash2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
+import { WorkflowBreadcrumb } from '@/components/WorkflowBreadcrumb';
 
 export default function ScrollytellingAdmin() {
+  const toast = useToast();
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [decisionLogs, setDecisionLogs] = useState<DecisionLog[]>([]);
   const [reports, setReports] = useState<(ScrollytellingReport & { id: string })[]>([]);
@@ -66,25 +69,21 @@ export default function ScrollytellingAdmin() {
       });
       await loadReports();
       setEditingReport(null);
-      alert('Report updated successfully!');
+      toast.showSuccess('Report updated successfully!');
     } catch (error) {
       console.error('Failed to update report:', error);
-      alert('Failed to update report. Please try again.');
+      toast.showError('Failed to update report. Please try again.');
     }
   };
 
   const handleDeleteReport = async (reportId: string) => {
-    if (!confirm('Are you sure you want to delete this report? This action cannot be undone.')) {
-      return;
-    }
-
     try {
       await deleteReport(reportId);
       await loadReports();
-      alert('Report deleted successfully!');
+      toast.showSuccess('Report deleted successfully!');
     } catch (error) {
       console.error('Failed to delete report:', error);
-      alert('Failed to delete report. Please try again.');
+      toast.showError('Failed to delete report. Please try again.');
     }
   };
 
@@ -99,6 +98,8 @@ export default function ScrollytellingAdmin() {
 
   return (
     <div>
+      <WorkflowBreadcrumb />
+
       <h1 className="text-4xl font-bold text-dark mb-2">Scrollytelling Reports</h1>
       <p className="text-dark/70 mb-8">
         Manage AI-generated scrollytelling reports. New reports are created from Decision Logs using AI.
