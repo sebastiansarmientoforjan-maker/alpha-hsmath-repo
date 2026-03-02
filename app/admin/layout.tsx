@@ -9,6 +9,7 @@ import { FloatingActionBar } from '@/components/FloatingActionBar';
 import { WorkflowProgressBar } from '@/components/WorkflowProgressBar';
 import { KeyboardShortcutsHelp } from '@/components/KeyboardShortcutsHelp';
 import { ClipboardDetectionNotification } from '@/components/ClipboardDetectionNotification';
+import { BatchProcessingQueue } from '@/components/BatchProcessingQueue';
 import { useGlobalShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -147,6 +148,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Clipboard Detection Notification */}
       <ClipboardDetectionNotification />
+
+      {/* Batch Processing Queue */}
+      <BatchProcessingQueue />
     </div>
   );
 }

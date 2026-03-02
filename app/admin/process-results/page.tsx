@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { BrutalCard, BrutalButton } from '@/components/ui';
-import { Sparkles, Save, Wand2, ClipboardList, Eye, ArrowRight, Microscope, Database } from 'lucide-react';
+import { Sparkles, Save, Wand2, ClipboardList, Eye, ArrowRight, Microscope, Database, Package, Plus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createInvestigation, ResearchType, MathematicalArea } from '@/lib/investigations';
 import { Timestamp } from 'firebase/firestore';
@@ -20,23 +20,29 @@ import { sanitizeResearchResults } from '@/lib/sanitize';
 import { useToast } from '@/contexts/ToastContext';
 import { WorkflowBreadcrumb } from '@/components/WorkflowBreadcrumb';
 import { extractPapersAndCitations } from '@/lib/citation-extractor';
+import { BatchQueueManager } from '@/lib/batch-queue';
+import { AddToBatchModal } from '@/components/AddToBatchModal';
 import {
   validateBeforeProcessing,
   checkCache,
   cacheResult,
   estimateTokenUsage,
 } from '@/lib/api-optimization';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function ProcessResultsPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeEngine, setActiveEngine] = useState<'gemini' | 'perplexity' | 'both'>('both');
   const [resultsText, setResultsText] = useState('');
   const [processing, setProcessing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showAddToBatchModal, setShowAddToBatchModal] = useState(false);
+  const [batchMode, setBatchMode] = useState(false);
+  const [currentBatchItemId, setCurrentBatchItemId] = useState<string | null>(null);
   const [processedData, setProcessedData] = useState<{
     suggestedTitle: string;
     suggestedMathArea: string;
@@ -75,6 +81,28 @@ export default function ProcessResultsPage() {
       toast.showSuccess('✨ Clipboard results auto-loaded! Ready to process.', 5000);
     }
   }, [toast]);
+
+  // Check for batch mode
+  useEffect(() => {
+    const isBatchMode = searchParams?.get('batch') === 'true';
+    if (isBatchMode) {
+      const batchItemJson = localStorage.getItem('batch-current-item');
+      if (batchItemJson) {
+        try {
+          const batchItem = JSON.parse(batchItemJson);
+          setResultsText(batchItem.resultsText);
+          setSearchQuery(batchItem.searchQuery);
+          setActiveEngine(batchItem.engine);
+          setBatchMode(true);
+          setCurrentBatchItemId(batchItem.id);
+          setAutoLoadedResults(true);
+          toast.showInfo(`📦 Batch Mode: Processing "${batchItem.title}"`, 5000);
+        } catch (error) {
+          console.error('Failed to load batch item:', error);
+        }
+      }
+    }
+  }, [searchParams, toast]);
 
   // Load most recent raw results on mount (only if clipboard didn't provide any)
   useEffect(() => {
