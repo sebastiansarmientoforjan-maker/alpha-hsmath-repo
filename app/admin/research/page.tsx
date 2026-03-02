@@ -271,10 +271,17 @@ export default function ResearchRepositoryAdmin() {
     });
 
     try {
-      await updateTopicInCollection(collectionId, topic.id, {
+      // Build update object without undefined values
+      const updateData: Partial<ResearchTopic> = {
         status: newStatus,
-        completedAt: newStatus === 'completed' ? Timestamp.now() : undefined,
-      } as any);
+      };
+
+      // Only add completedAt when marking as completed
+      if (newStatus === 'completed') {
+        updateData.completedAt = Timestamp.now();
+      }
+
+      await updateTopicInCollection(collectionId, topic.id, updateData as any);
 
       console.log('Status updated successfully, reloading collections...');
       await loadCollections();
