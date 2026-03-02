@@ -20,7 +20,8 @@ service cloud.firestore {
       allow read: if isAlphaSchoolUser();
 
       // ✅ SECURITY: Field validation for GEM prompts
-      allow create: if isAdmin() &&
+      // Any @alpha.school user can create prompts
+      allow create: if isAlphaSchoolUser() &&
         request.resource.data.title is string &&
         request.resource.data.title.size() > 0 &&
         request.resource.data.title.size() <= 500 &&
@@ -28,6 +29,7 @@ service cloud.firestore {
         request.resource.data.prompt.size() > 0 &&
         request.resource.data.createdAt is timestamp;
 
+      // Only admin can update/delete
       allow update, delete: if isAdmin();
     }
 

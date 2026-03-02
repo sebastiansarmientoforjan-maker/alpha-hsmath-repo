@@ -396,22 +396,18 @@ Category tags to use: [PEDAGOGY], [HARD DATA], [STUDENT OUTCOMES], [METHODOLOGY]
   const savePrompt = async () => {
     // Check if user is authenticated
     if (!user) {
-      const shouldSignIn = confirm(
-        'You need to sign in to save prompts. Would you like to sign in with Google?'
-      );
-      if (shouldSignIn) {
-        try {
-          await signInWithGoogle();
-          // After sign in, try to save again
-          await saveGemPrompt(`[${activeEngine.toUpperCase()}] ${searchQuery}`, getActivePrompt());
-          setSaved(true);
-          setTimeout(() => setSaved(false), 2000);
-          loadSavedPrompts(); // Reload repository
-          alert(`${activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} prompt saved to repository!`);
-        } catch (error) {
-          console.error('Error during sign in or save:', error);
-          toast.showError('Failed to sign in or save prompt. Please try again.');
-        }
+      toast.showWarning('You need to sign in to save prompts. Signing in...');
+      try {
+        await signInWithGoogle();
+        // After sign in, try to save again
+        await saveGemPrompt(`[${activeEngine.toUpperCase()}] ${searchQuery}`, getActivePrompt());
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+        loadSavedPrompts(); // Reload repository
+        toast.showSuccess(`${activeEngine === 'gemini' ? 'Gemini' : 'Perplexity'} prompt saved to repository!`);
+      } catch (error) {
+        console.error('Error during sign in or save:', error);
+        toast.showError('Failed to sign in or save prompt. Please try again.');
       }
       return;
     }
