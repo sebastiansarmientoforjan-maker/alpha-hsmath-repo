@@ -10,7 +10,6 @@ import { WorkflowProgressBar } from '@/components/WorkflowProgressBar';
 import { KeyboardShortcutsHelp } from '@/components/KeyboardShortcutsHelp';
 import { ClipboardDetectionNotification } from '@/components/ClipboardDetectionNotification';
 import { BatchProcessingQueue } from '@/components/BatchProcessingQueue';
-import { FirebaseDebug } from '@/components/FirebaseDebug';
 import { useGlobalShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -152,9 +151,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Batch Processing Queue */}
       <BatchProcessingQueue />
-
-      {/* Firebase Debug Info */}
-      <FirebaseDebug />
     </div>
   );
 }
