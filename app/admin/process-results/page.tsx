@@ -52,7 +52,6 @@ export default function ProcessResultsPage() {
     impactMetrics: string;
     citations: Array<{ title: string; url: string; authors?: string }>;
   } | null>(null);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedInvestigationId, setSavedInvestigationId] = useState<string | null>(null);
   const [savedInvestigationTitle, setSavedInvestigationTitle] = useState<string>('');
   const [savedKeyFindings, setSavedKeyFindings] = useState<string>('');
@@ -364,7 +363,7 @@ export default function ProcessResultsPage() {
         setSavedInvestigationId(investigationId);
         setSavedInvestigationTitle(investigationData.title);
         setSavedKeyFindings(keyFindings); // Save keyFindings before reset
-        setShowSuccessModal(true);
+        toast.showSuccess(`✅ Investigation saved: "${investigationData.title}"`, 2500);
       }
 
       // Reset form
@@ -440,32 +439,6 @@ export default function ProcessResultsPage() {
     return topics.slice(0, 10);
   };
 
-  const handleCreateCollectionFromSuccess = async () => {
-    if (!savedInvestigationId || !user) return;
-
-    try {
-      setCreatingCollection(true);
-
-      // Create the collection (empty - user will add topics manually)
-      const collectionId = await createResearchCollection({
-        title: `${savedInvestigationTitle} - Research Collection`,
-        description: `Research collection from investigation: ${savedInvestigationTitle}`,
-        sourceInvestigationId: savedInvestigationId,
-        sourceInvestigationTitle: savedInvestigationTitle,
-        createdBy: user.displayName || user.email || 'Unknown',
-      });
-
-      // Close modal and navigate to research collections tab
-      setShowSuccessModal(false);
-      router.push('/admin/research?tab=collections');
-      toast.showSuccess('Research collection created successfully!');
-    } catch (error) {
-      console.error('Error creating collection:', error);
-      toast.showError('Failed to create research collection. Please try again.');
-    } finally {
-      setCreatingCollection(false);
-    }
-  };
 
   return (
     <div>
@@ -1014,108 +987,6 @@ Example (both engines):
         </div>
       </div>
 
-      {/* Success Modal - Enhanced with Quick Actions */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 bg-dark/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-white border-4 border-dark shadow-[8px_8px_0px_0px_rgba(18,18,18,1)] max-w-3xl w-full p-8 animate-fade-in">
-            {/* Success Header */}
-            <div className="text-center mb-6">
-              <div className="text-6xl mb-4">🎯</div>
-              <h2 className="text-3xl font-bold text-dark mb-2">Investigation Saved!</h2>
-              <p className="text-dark/70 mb-1">
-                "{savedInvestigationTitle}" is now in your Research Repository.
-              </p>
-              <p className="text-sm text-dark/50">
-                What would you like to do next?
-              </p>
-            </div>
-
-            {/* Quick Actions Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {/* View Investigation */}
-              <button
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  router.push('/admin/research');
-                }}
-                className="p-6 border-4 border-dark bg-cool-blue hover:bg-dark text-dark hover:text-white transition-all text-left group"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <Microscope size={28} />
-                  <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
-                </div>
-                <h3 className="text-xl font-bold mb-1">View Investigation</h3>
-                <p className="text-sm opacity-80">See full details, citations, and findings</p>
-              </button>
-
-              {/* Create Decision Log */}
-              <button
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  router.push('/admin/decision-logs');
-                }}
-                className="p-6 border-4 border-dark bg-alert-orange hover:bg-dark text-dark hover:text-white transition-all text-left group"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <Database size={28} />
-                  <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
-                </div>
-                <h3 className="text-xl font-bold mb-1">Create Decision Log</h3>
-                <p className="text-sm opacity-90">Document decisions based on this research</p>
-              </button>
-
-              {/* Create Collection */}
-              <button
-                onClick={handleCreateCollectionFromSuccess}
-                disabled={creatingCollection}
-                className={`p-6 border-4 border-dark text-left transition-all ${
-                  creatingCollection
-                    ? 'bg-gray-300 text-dark/40 cursor-not-allowed'
-                    : 'bg-white hover:bg-dark text-dark hover:text-white group'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <ClipboardList size={28} />
-                  {!creatingCollection && <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />}
-                </div>
-                <h3 className="text-xl font-bold mb-1">
-                  {creatingCollection ? 'Creating...' : 'Create Collection'}
-                </h3>
-                <p className="text-sm opacity-80">
-                  {creatingCollection ? 'Setting up your collection...' : 'Organize follow-up topics and research'}
-                </p>
-              </button>
-
-              {/* Start Another */}
-              <button
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  setResultsText('');
-                  setSearchQuery('');
-                  setProcessedData(null);
-                  toast.showInfo('Ready for new research!');
-                }}
-                className="p-6 border-4 border-dark bg-white hover:bg-dark text-dark hover:text-white transition-all text-left group"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <Sparkles size={28} />
-                  <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
-                </div>
-                <h3 className="text-xl font-bold mb-1">Start Another</h3>
-                <p className="text-sm opacity-80">Process more research results</p>
-              </button>
-            </div>
-
-            {/* Skip Button */}
-            <button
-              onClick={() => setShowSuccessModal(false)}
-              className="w-full px-6 py-3 border-2 border-dark/20 bg-white text-dark/60 hover:text-dark hover:border-dark transition-all font-medium"
-            >
-              Close (I'll decide later)
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
