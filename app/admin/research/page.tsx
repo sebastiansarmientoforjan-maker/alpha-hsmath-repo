@@ -249,6 +249,12 @@ export default function ResearchRepositoryAdmin() {
   };
 
   const handleToggleTopicStatus = async (collectionId: string, topic: ResearchTopic) => {
+    if (!topic.id) {
+      console.error('Topic ID is missing:', topic);
+      alert('Error: Topic ID is missing. Cannot update status.');
+      return;
+    }
+
     const statusOrder: Record<string, string> = {
       'pending': 'in-progress',
       'in-progress': 'completed',
@@ -256,14 +262,25 @@ export default function ResearchRepositoryAdmin() {
     };
     const newStatus = statusOrder[topic.status] as ResearchTopic['status'];
 
+    console.log('Toggling topic status:', {
+      topicId: topic.id,
+      topicTitle: topic.title,
+      currentStatus: topic.status,
+      newStatus: newStatus,
+      collectionId: collectionId,
+    });
+
     try {
-      await updateTopicInCollection(collectionId, topic.id!, {
+      await updateTopicInCollection(collectionId, topic.id, {
         status: newStatus,
-        completedAt: newStatus === 'completed' ? new Date() : undefined,
+        completedAt: newStatus === 'completed' ? Timestamp.now() : undefined,
       } as any);
+
+      console.log('Status updated successfully, reloading collections...');
       await loadCollections();
     } catch (error) {
       console.error('Error updating topic status:', error);
+      alert('Failed to update topic status. Check console for details.');
     }
   };
 
