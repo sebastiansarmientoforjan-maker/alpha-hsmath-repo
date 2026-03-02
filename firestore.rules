@@ -22,11 +22,11 @@ service cloud.firestore {
       // ✅ SECURITY: Field validation for GEM prompts
       // Any @alpha.school user can create prompts
       allow create: if isAlphaSchoolUser() &&
-        request.resource.data.title is string &&
-        request.resource.data.title.size() > 0 &&
-        request.resource.data.title.size() <= 500 &&
-        request.resource.data.prompt is string &&
-        request.resource.data.prompt.size() > 0 &&
+        request.resource.data.searchQuery is string &&
+        request.resource.data.searchQuery.size() > 0 &&
+        request.resource.data.searchQuery.size() <= 500 &&
+        request.resource.data.promptContent is string &&
+        request.resource.data.promptContent.size() > 0 &&
         request.resource.data.createdAt is timestamp;
 
       // Only admin can update/delete
