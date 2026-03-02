@@ -12,17 +12,27 @@ export function FloatingActionBar() {
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
+  // Only show on workflow pages (not on dashboard or stakeholder pages)
+  const workflowPages = [
+    '/admin/gem-generator',
+    '/admin/process-results',
+    '/admin/research',
+    '/admin/decision-logs',
+    '/admin/scrollytelling',
+  ];
+  const isWorkflowPage = workflowPages.some(page => pathname.startsWith(page));
+
   useEffect(() => {
     const action = WorkflowManager.getNextAction();
     setNextAction(action);
 
-    // Show if there's a next action and we're not already on that page
-    if (action && pathname !== action.href && !dismissed) {
+    // Show if there's a next action, we're on a workflow page, and we're not already on that page
+    if (action && isWorkflowPage && pathname !== action.href && !dismissed) {
       setVisible(true);
     } else {
       setVisible(false);
     }
-  }, [pathname, dismissed]);
+  }, [pathname, dismissed, isWorkflowPage]);
 
   if (!visible || !nextAction) return null;
 
