@@ -93,6 +93,13 @@ export default function ResearchRepositoryAdmin() {
     return () => window.removeEventListener('focus', handleFocus);
   }, [activeTab]);
 
+  // Load investigations when editing modals open (needed for dropdowns)
+  useEffect(() => {
+    if ((editingCollection || editingTopic) && investigations.length === 0) {
+      loadInvestigations();
+    }
+  }, [editingCollection, editingTopic]);
+
   const loadInvestigations = async () => {
     setLoadingInvestigations(true);
     try {
@@ -287,13 +294,28 @@ export default function ResearchRepositoryAdmin() {
     }
   };
 
-  const handleSaveCollection = async (collectionId: string, title: string, description: string, notes: string) => {
+  const handleSaveCollection = async (
+    collectionId: string,
+    title: string,
+    description: string,
+    notes: string,
+    sourceInvestigationId?: string,
+    sourceInvestigationTitle?: string
+  ) => {
     try {
-      await updateResearchCollection(collectionId, {
+      const updates: any = {
         title: title.trim(),
         description: description.trim(),
         notes: notes.trim(),
-      });
+      };
+
+      // If source investigation was changed
+      if (sourceInvestigationId && sourceInvestigationTitle) {
+        updates.sourceInvestigationId = sourceInvestigationId;
+        updates.sourceInvestigationTitle = sourceInvestigationTitle;
+      }
+
+      await updateResearchCollection(collectionId, updates);
       await loadCollections();
       setEditingCollection(null);
       toast.showSuccess('Collection updated successfully');
@@ -303,12 +325,35 @@ export default function ResearchRepositoryAdmin() {
     }
   };
 
-  const handleSaveTopic = async (collectionId: string, topicId: string, title: string, notes: string) => {
+  const handleSaveTopic = async (
+    collectionId: string,
+    topicId: string,
+    title: string,
+    notes: string,
+    linkedInvestigationId?: string | null,
+    linkedInvestigationTitle?: string | null
+  ) => {
     try {
-      await updateTopicInCollection(collectionId, topicId, {
+      const updates: any = {
         title: title.trim(),
         notes: notes.trim(),
-      });
+      };
+
+      // If unlinking investigation (null means unlink)
+      if (linkedInvestigationId === null) {
+        updates.linkedInvestigationId = undefined;
+        updates.linkedInvestigationTitle = undefined;
+        updates.status = 'in-progress'; // Reset status when unlinking
+      }
+      // If linking to new investigation
+      else if (linkedInvestigationId && linkedInvestigationTitle) {
+        updates.linkedInvestigationId = linkedInvestigationId;
+        updates.linkedInvestigationTitle = linkedInvestigationTitle;
+        updates.status = 'completed';
+        updates.completedAt = Timestamp.now();
+      }
+
+      await updateTopicInCollection(collectionId, topicId, updates);
       await loadCollections();
       setEditingTopic(null);
       toast.showSuccess('Topic updated successfully');
@@ -1157,11 +1202,16 @@ export default function ResearchRepositoryAdmin() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
+                const selectedInvId = formData.get('sourceInvestigationId') as string;
+                const selectedInv = investigations.find(inv => inv.id === selectedInvId);
+
                 handleSaveCollection(
                   editingCollection.id!,
                   formData.get('title') as string,
                   formData.get('description') as string,
-                  formData.get('notes') as string
+                  formData.get('notes') as string,
+                  selectedInv?.id,
+                  selectedInv?.title
                 );
               }}
               className="space-y-4"
@@ -1204,6 +1254,27 @@ export default function ResearchRepositoryAdmin() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-bold text-dark mb-2">
+                  Source Investigation *
+                </label>
+                <select
+                  name="sourceInvestigationId"
+                  defaultValue={editingCollection.sourceInvestigationId}
+                  required
+                  className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue bg-white"
+                >
+                  {investigations.map(inv => (
+                    <option key={inv.id} value={inv.id}>
+                      {inv.title}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-dark/60 mt-2">
+                  This is the investigation that serves as the source/origin for this collection.
+                </p>
+              </div>
+
               <div className="flex gap-3 justify-end pt-4">
                 <button
                   type="button"
@@ -1242,11 +1313,30 @@ export default function ResearchRepositoryAdmin() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
+                const action = formData.get('action') as string;
+
+                let linkedInvId: string | null | undefined = undefined;
+                let linkedInvTitle: string | null | undefined = undefined;
+
+                if (action === 'unlink') {
+                  // Explicitly unlink
+                  linkedInvId = null;
+                  linkedInvTitle = null;
+                } else if (action === 'change') {
+                  // Change to new investigation
+                  const selectedInvId = formData.get('linkedInvestigationId') as string;
+                  const selectedInv = investigations.find(inv => inv.id === selectedInvId);
+                  linkedInvId = selectedInv?.id;
+                  linkedInvTitle = selectedInv?.title;
+                }
+
                 handleSaveTopic(
                   editingTopic.collectionId,
                   editingTopic.topic.id!,
                   formData.get('title') as string,
-                  formData.get('notes') as string
+                  formData.get('notes') as string,
+                  linkedInvId,
+                  linkedInvTitle
                 );
               }}
               className="space-y-4"
@@ -1278,20 +1368,87 @@ export default function ResearchRepositoryAdmin() {
               </div>
 
               <div className="bg-bg-light border-4 border-dark p-4">
-                <h3 className="text-sm font-bold text-dark mb-2">Linked Investigation</h3>
+                <h3 className="text-sm font-bold text-dark mb-3">Linked Investigation</h3>
                 {editingTopic.topic.linkedInvestigationTitle ? (
-                  <div className="flex items-center gap-2">
-                    <span className="flex-1 text-sm text-dark">
-                      {editingTopic.topic.linkedInvestigationTitle}
-                    </span>
-                    <span className="text-xs text-dark/60 px-2 py-1 border-2 border-dark bg-cool-blue">
-                      Linked
-                    </span>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 p-2 bg-white border-2 border-dark">
+                      <span className="flex-1 text-sm text-dark">
+                        {editingTopic.topic.linkedInvestigationTitle}
+                      </span>
+                      <span className="text-xs text-dark/60 px-2 py-1 border-2 border-dark bg-cool-blue">
+                        Linked
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-dark">
+                        Change linked investigation:
+                      </label>
+                      <select
+                        name="linkedInvestigationId"
+                        defaultValue={editingTopic.topic.linkedInvestigationId}
+                        className="w-full border-2 border-dark px-3 py-2 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-cool-blue bg-white"
+                      >
+                        {investigations.map(inv => (
+                          <option key={inv.id} value={inv.id}>
+                            {inv.title}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        name="action"
+                        value="change"
+                        className="w-full px-4 py-2 border-2 border-dark bg-cool-blue text-dark text-sm font-bold hover:shadow-[2px_2px_0px_0px_rgba(18,18,18,1)] transition-all"
+                      >
+                        Change Investigation
+                      </button>
+                    </div>
+
+                    <div className="pt-2 border-t-2 border-dark">
+                      <button
+                        type="submit"
+                        name="action"
+                        value="unlink"
+                        className="w-full px-4 py-2 border-2 border-dark bg-alert-orange text-dark text-sm font-bold hover:shadow-[2px_2px_0px_0px_rgba(18,18,18,1)] transition-all"
+                      >
+                        Unlink Investigation
+                      </button>
+                      <p className="text-xs text-dark/60 mt-2">
+                        This will remove the link and reset the topic status to "in-progress".
+                      </p>
+                    </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-dark/60 italic">
-                    No investigation linked yet. Link an investigation from the "Investigations" tab view.
-                  </p>
+                  <div className="space-y-3">
+                    <p className="text-sm text-dark/60 italic">
+                      No investigation linked yet.
+                    </p>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-dark">
+                        Link an investigation:
+                      </label>
+                      <select
+                        name="linkedInvestigationId"
+                        className="w-full border-2 border-dark px-3 py-2 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-cool-blue bg-white"
+                      >
+                        <option value="">-- Select Investigation --</option>
+                        {investigations.map(inv => (
+                          <option key={inv.id} value={inv.id}>
+                            {inv.title}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        name="action"
+                        value="change"
+                        className="w-full px-4 py-2 border-2 border-dark bg-cool-blue text-dark text-sm font-bold hover:shadow-[2px_2px_0px_0px_rgba(18,18,18,1)] transition-all"
+                      >
+                        Link Investigation
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -1305,9 +1462,11 @@ export default function ResearchRepositoryAdmin() {
                 </button>
                 <button
                   type="submit"
+                  name="action"
+                  value="save"
                   className="px-6 py-3 border-4 border-dark bg-cool-blue text-dark font-bold hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all"
                 >
-                  Save Changes
+                  Save Title & Notes
                 </button>
               </div>
             </form>
