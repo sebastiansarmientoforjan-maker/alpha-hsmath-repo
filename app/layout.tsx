@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Living Research Repository",
+  title: "Alpha Math Living Research Repository",
   description: "Educational research platform for mathematics learning analytics and investigation management",
 };
 
