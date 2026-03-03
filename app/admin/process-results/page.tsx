@@ -37,6 +37,8 @@ export default function ProcessResultsPage() {
   const toast = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeEngine, setActiveEngine] = useState<'gemini' | 'perplexity' | 'both'>('both');
+  const [geminiResults, setGeminiResults] = useState('');
+  const [perplexityResults, setPerplexityResults] = useState('');
   const [resultsText, setResultsText] = useState('');
   const [processing, setProcessing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -111,21 +113,19 @@ export default function ProcessResultsPage() {
       try {
         const recentResult = await getMostRecentRawResult();
         if (recentResult) {
-          // Combine Gemini and Perplexity results
-          let combinedResults = '';
-
+          // Separate Gemini and Perplexity results into their own fields
           if (recentResult.geminiResults) {
             // ✅ SECURITY: Sanitize results from database
-            combinedResults += '=== GEMINI RESULTS ===\n\n' + sanitizeResearchResults(recentResult.geminiResults) + '\n\n';
+            setGeminiResults(sanitizeResearchResults(recentResult.geminiResults));
           }
 
           if (recentResult.perplexityResults) {
             // ✅ SECURITY: Sanitize results from database
-            combinedResults += '=== PERPLEXITY RESULTS ===\n\n' + sanitizeResearchResults(recentResult.perplexityResults);
+            setPerplexityResults(sanitizeResearchResults(recentResult.perplexityResults));
           }
 
-          setResultsText(combinedResults);
-          setSearchQuery(recentResult.searchQuery);
+          // DO NOT auto-fill searchQuery - leave it empty for user to enter
+          // setSearchQuery(recentResult.searchQuery); // REMOVED
 
           // Determine which engine was used
           if (recentResult.geminiResults && recentResult.perplexityResults) {
@@ -165,20 +165,32 @@ export default function ProcessResultsPage() {
   }, [user]);
 
   const processWithClaude = async () => {
-    if (!resultsText.trim()) {
-      toast.showError('Please paste research results first.');
+    // Combine Gemini and Perplexity results
+    let combinedResults = '';
+    if (geminiResults.trim()) {
+      combinedResults += '=== GEMINI RESULTS ===\n\n' + geminiResults.trim() + '\n\n';
+    }
+    if (perplexityResults.trim()) {
+      combinedResults += '=== PERPLEXITY RESULTS ===\n\n' + perplexityResults.trim();
+    }
+
+    if (!combinedResults.trim()) {
+      toast.showError('Please paste results from at least one engine (Gemini or Perplexity).');
       return;
     }
 
+    // Store combined results for later use
+    setResultsText(combinedResults);
+
     // ✅ OPTIMIZATION: Validate input before sending to API
-    const validation = validateBeforeProcessing(resultsText);
+    const validation = validateBeforeProcessing(combinedResults);
     if (!validation.valid) {
       toast.showWarning(`${validation.reason}: ${validation.suggestion}`);
       return;
     }
 
     // ✅ OPTIMIZATION: Show token estimate
-    const tokenEstimate = estimateTokenUsage(resultsText);
+    const tokenEstimate = estimateTokenUsage(combinedResults);
     if (tokenEstimate.warning) {
       toast.showWarning(tokenEstimate.warning);
     } else {
@@ -186,7 +198,7 @@ export default function ProcessResultsPage() {
     }
 
     // ✅ OPTIMIZATION: Check cache for recent identical requests
-    const cachedData = checkCache(resultsText, searchQuery);
+    const cachedData = checkCache(combinedResults, searchQuery);
     if (cachedData) {
       setProcessedData(cachedData);
       setInvestigationData(prev => ({
@@ -204,7 +216,7 @@ export default function ProcessResultsPage() {
       const response = await authenticatedFetch('/api/process-research-results', {
         method: 'POST',
         body: JSON.stringify({
-          resultsText,
+          resultsText: combinedResults,
           searchQuery,
         }),
       });
@@ -388,6 +400,8 @@ export default function ProcessResultsPage() {
   };
 
   const resetAll = () => {
+    setGeminiResults('');
+    setPerplexityResults('');
     setResultsText('');
     setSearchQuery('');
     setProcessedData(null);
@@ -469,11 +483,10 @@ export default function ProcessResultsPage() {
       <BrutalCard className="mb-6 border-cool-blue bg-cool-blue/10">
         <h2 className="text-lg font-bold text-dark mb-3">📝 How to Use:</h2>
         <ol className="text-sm text-dark/70 space-y-2 list-decimal list-inside">
-          <li>Paste the COMPLETE results from Gemini, Perplexity, or BOTH including Source Reliability Matrix and citations</li>
-          <li>If using both engines, separate them with clear headers in the same textarea</li>
-          <li>Optionally enter your original search query (helps with metadata)</li>
-          <li>Select which AI engine(s) you used</li>
-          <li>Click <strong>"Process with Claude"</strong> to automatically synthesize findings</li>
+          <li>Enter your original search query (helps with metadata)</li>
+          <li>Select which AI engine(s) you used (Gemini, Perplexity, or Both)</li>
+          <li>Paste the COMPLETE results from each engine in its respective text area (including Source Reliability Matrix and citations)</li>
+          <li>Click <strong>"Process with Claude"</strong> to automatically synthesize findings (results will be combined automatically)</li>
           <li>Review and edit the processed results</li>
           <li>Fill in investigation metadata</li>
           <li>Click <strong>"Save Investigation"</strong></li>
@@ -538,13 +551,13 @@ export default function ProcessResultsPage() {
         {activeEngine === 'both' && (
           <div className="mt-4 p-4 border-2 border-alert-orange bg-alert-orange/10 animate-fade-in">
             <p className="text-sm text-dark/80">
-              💡 <strong>Tip:</strong> Paste results from both engines in the same textarea. Separate them with clear headers like "=== GEMINI RESULTS ===" and "=== PERPLEXITY RESULTS ==="
+              💡 <strong>Tip:</strong> Use the separate text areas below for each engine. They will be combined automatically.
             </p>
           </div>
         )}
       </BrutalCard>
 
-      {/* Results Textarea */}
+      {/* Results Textareas - Separated by Engine */}
       <BrutalCard className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-dark">3. Paste Research Results</h2>
@@ -562,43 +575,77 @@ export default function ProcessResultsPage() {
             </p>
           </div>
         )}
-        <textarea
-          value={resultsText}
-          onChange={(e) => setResultsText(e.target.value)}
-          rows={16}
-          className="w-full border-4 border-dark px-4 py-3 text-dark font-mono text-sm focus:outline-none focus:ring-4 focus:ring-alert-orange"
-          placeholder="Paste the complete results here, including:
+
+        {/* Gemini Results */}
+        {(activeEngine === 'gemini' || activeEngine === 'both') && (
+          <div className="mb-6">
+            <label className="block text-sm font-bold text-dark mb-2">
+              🔵 Gemini Deep Research Results
+            </label>
+            <textarea
+              value={geminiResults}
+              onChange={(e) => setGeminiResults(e.target.value)}
+              rows={12}
+              className="w-full border-4 border-dark px-4 py-3 text-dark font-mono text-sm focus:outline-none focus:ring-4 focus:ring-cool-blue"
+              placeholder="Paste Gemini Deep Research results here, including:
 - Source Reliability Matrix (table with scores)
 - Key findings and conclusions
 - All citations and references
 - Methodology notes
 
-Example (single engine):
+Example:
 # Key Findings
 Research demonstrates that...
 
 ## Source Reliability Matrix
 | Source | Score |
-| [Paper 1](url) | 8.5 |
+| [Paper 1](url) | 8.5 |"
+            />
+            <p className="text-xs text-dark/60 mt-2">
+              {geminiResults.length} characters • {geminiResults.split('\n').length} lines
+            </p>
+          </div>
+        )}
 
-Example (both engines):
-=== GEMINI DEEP RESEARCH RESULTS ===
-[Gemini findings here...]
+        {/* Perplexity Results */}
+        {(activeEngine === 'perplexity' || activeEngine === 'both') && (
+          <div className="mb-6">
+            <label className="block text-sm font-bold text-dark mb-2">
+              🟣 Perplexity AI Results
+            </label>
+            <textarea
+              value={perplexityResults}
+              onChange={(e) => setPerplexityResults(e.target.value)}
+              rows={12}
+              className="w-full border-4 border-dark px-4 py-3 text-dark font-mono text-sm focus:outline-none focus:ring-4 focus:ring-alert-orange"
+              placeholder="Paste Perplexity AI results here, including:
+- Key findings and conclusions
+- All citations and references [1], [2], etc.
+- Sources list with URLs
 
-=== PERPLEXITY AI RESULTS ===
-[Perplexity findings here...]
-"
-        />
+Example:
+# Research Summary
+Based on recent studies [1][2]...
+
+## Sources:
+[1] Paper Title - https://..."
+            />
+            <p className="text-xs text-dark/60 mt-2">
+              {perplexityResults.length} characters • {perplexityResults.split('\n').length} lines
+            </p>
+          </div>
+        )}
+
         <div className="mt-4">
           <p className="text-xs text-dark/60 mb-3">
-            {resultsText.length} characters • {resultsText.split('\n').length} lines
+            Total: {(geminiResults.length + perplexityResults.length).toLocaleString()} characters
           </p>
           <div className="flex gap-3">
             <button
               onClick={processWithClaude}
-              disabled={processing || !resultsText.trim()}
+              disabled={processing || (!geminiResults.trim() && !perplexityResults.trim())}
               className={`flex-1 flex items-center justify-center gap-3 px-8 py-5 border-4 border-dark font-bold text-lg transition-all ${
-                processing || !resultsText.trim()
+                processing || (!geminiResults.trim() && !perplexityResults.trim())
                   ? 'bg-gray-300 text-dark/40 cursor-not-allowed'
                   : 'bg-alert-orange text-dark hover:shadow-[8px_8px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-4px] hover:translate-y-[-4px] active:shadow-[2px_2px_0px_0px_rgba(18,18,18,1)] active:translate-x-[2px] active:translate-y-[2px]'
               }`}
@@ -615,9 +662,11 @@ Example (both engines):
                 </>
               )}
             </button>
-            {resultsText.trim() && (
+            {(geminiResults.trim() || perplexityResults.trim()) && (
               <button
                 onClick={() => {
+                  setGeminiResults('');
+                  setPerplexityResults('');
                   setResultsText('');
                   toast.showInfo('Results cleared');
                 }}
