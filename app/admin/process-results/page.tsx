@@ -36,10 +36,9 @@ export default function ProcessResultsPage() {
   const searchParams = useSearchParams();
   const toast = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeEngine, setActiveEngine] = useState<'gemini' | 'perplexity' | 'both'>('both');
   const [geminiResults, setGeminiResults] = useState('');
   const [perplexityResults, setPerplexityResults] = useState('');
-  const [resultsText, setResultsText] = useState('');
+  const [resultsText, setResultsText] = useState(''); // Combined results after processing
   const [processing, setProcessing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAddToBatchModal, setShowAddToBatchModal] = useState(false);
@@ -91,9 +90,9 @@ export default function ProcessResultsPage() {
       if (batchItemJson) {
         try {
           const batchItem = JSON.parse(batchItemJson);
-          setResultsText(batchItem.resultsText);
+          // Note: batch mode might have combined resultsText - we'll just show it in one field
+          setGeminiResults(batchItem.resultsText);
           setSearchQuery(batchItem.searchQuery);
-          setActiveEngine(batchItem.engine);
           setBatchMode(true);
           setCurrentBatchItemId(batchItem.id);
           setAutoLoadedResults(true);
@@ -126,15 +125,6 @@ export default function ProcessResultsPage() {
 
           // DO NOT auto-fill searchQuery - leave it empty for user to enter
           // setSearchQuery(recentResult.searchQuery); // REMOVED
-
-          // Determine which engine was used
-          if (recentResult.geminiResults && recentResult.perplexityResults) {
-            setActiveEngine('both');
-          } else if (recentResult.geminiResults) {
-            setActiveEngine('gemini');
-          } else if (recentResult.perplexityResults) {
-            setActiveEngine('perplexity');
-          }
 
           setAutoLoadedResults(true);
         }
@@ -303,11 +293,16 @@ export default function ProcessResultsPage() {
         citations = extracted.citations;
         sourceCount = extracted.paperCount; // Now accurately reflects unique papers
         keyFindings = extractKeyFindings(resultsText);
-        const engineText = activeEngine === 'gemini'
+
+        // Detect which engines were used based on content
+        const hasGemini = geminiResults.trim().length > 0;
+        const hasPerplexity = perplexityResults.trim().length > 0;
+        const engineText = hasGemini && hasPerplexity
+          ? 'Gemini Deep Research and Perplexity AI (combined analysis)'
+          : hasGemini
           ? 'Gemini Deep Research'
-          : activeEngine === 'perplexity'
-          ? 'Perplexity AI'
-          : 'Gemini Deep Research and Perplexity AI (combined analysis)';
+          : 'Perplexity AI';
+
         methodology = `Research conducted using ${engineText}.${searchQuery ? `\n\nOriginal Query: "${searchQuery}"` : ''}\n\nFull results captured in key findings section.`;
         impactMetrics = `${sourceCount} sources analyzed`;
       }
@@ -411,7 +406,6 @@ export default function ProcessResultsPage() {
       mathematicalArea: 'Algebra',
       author: user?.displayName || user?.email || '',
     });
-    setActiveEngine('both');
     toast.showInfo('All fields reset. Starting fresh!');
   };
 
@@ -469,7 +463,7 @@ export default function ProcessResultsPage() {
             Paste results from Gemini or Perplexity and convert them into structured Research Investigations
           </p>
         </div>
-        {(resultsText || processedData) && (
+        {(geminiResults || perplexityResults || processedData) && (
           <button
             onClick={resetAll}
             className="px-6 py-3 border-4 border-dark bg-white text-dark font-bold hover:bg-alert-orange/20 hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] transition-all"
@@ -481,164 +475,83 @@ export default function ProcessResultsPage() {
 
       {/* Instructions */}
       <BrutalCard className="mb-6 border-cool-blue bg-cool-blue/10">
-        <h2 className="text-lg font-bold text-dark mb-3">📝 How to Use:</h2>
+        <h2 className="text-lg font-bold text-dark mb-3">📝 Quick Start:</h2>
         <ol className="text-sm text-dark/70 space-y-2 list-decimal list-inside">
-          <li>Enter your original search query (helps with metadata)</li>
-          <li>Select which AI engine(s) you used (Gemini, Perplexity, or Both)</li>
-          <li>Paste the COMPLETE results from each engine in its respective text area (including Source Reliability Matrix and citations)</li>
-          <li>Click <strong>"Process with Claude"</strong> to automatically synthesize findings (results will be combined automatically)</li>
-          <li>Review and edit the processed results</li>
-          <li>Fill in investigation metadata</li>
-          <li>Click <strong>"Save Investigation"</strong></li>
+          <li><strong>Paste results</strong> from Gemini and/or Perplexity in the text areas below</li>
+          <li><strong>Click "Process with Claude"</strong> to synthesize findings automatically</li>
+          <li><strong>Review & edit</strong> the processed results</li>
+          <li><strong>Fill metadata</strong> (title, type, area)</li>
+          <li><strong>Save Investigation</strong></li>
         </ol>
       </BrutalCard>
 
-      {/* Original Query - Optional */}
+      {/* AI Engine Selection - Now just visual indicator */}
       <BrutalCard className="mb-6">
-        <h2 className="text-xl font-bold text-dark mb-4">1. Original Search Query <span className="text-sm font-normal text-dark/60">(Optional)</span></h2>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="e.g., Adaptive Learning Pathways in Algebra"
-          className="w-full border-4 border-dark px-4 py-3 text-dark focus:outline-none focus:ring-4 focus:ring-cool-blue"
-        />
-        <p className="text-xs text-dark/60 mt-2">
-          If you remember the original query, it helps generate better metadata (keywords)
-        </p>
-      </BrutalCard>
-
-      {/* AI Engine Selection */}
-      <BrutalCard className="mb-6">
-        <h2 className="text-xl font-bold text-dark mb-4">2. AI Engine Used</h2>
-        <div className="grid grid-cols-3 gap-4">
-          <button
-            onClick={() => setActiveEngine('gemini')}
-            className={`group px-6 py-6 border-4 border-dark font-bold transition-all ${
-              activeEngine === 'gemini'
-                ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] scale-105'
-                : 'bg-white text-dark hover:bg-cool-blue/20 hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]'
-            }`}
-          >
-            <Sparkles size={24} className={`inline mb-2 ${activeEngine === 'gemini' ? '' : 'group-hover:animate-pulse'}`} />
-            <div className="text-base">Gemini Only</div>
-            {activeEngine === 'gemini' && <div className="text-xs font-normal mt-1">✓ Selected</div>}
-          </button>
-          <button
-            onClick={() => setActiveEngine('perplexity')}
-            className={`group px-6 py-6 border-4 border-dark font-bold transition-all ${
-              activeEngine === 'perplexity'
-                ? 'bg-cool-blue text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] scale-105'
-                : 'bg-white text-dark hover:bg-cool-blue/20 hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]'
-            }`}
-          >
-            <div className="text-base">Perplexity Only</div>
-            {activeEngine === 'perplexity' && <div className="text-xs font-normal mt-1">✓ Selected</div>}
-          </button>
-          <button
-            onClick={() => setActiveEngine('both')}
-            className={`group px-6 py-6 border-4 border-dark font-bold transition-all ${
-              activeEngine === 'both'
-                ? 'bg-alert-orange text-dark shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] scale-105'
-                : 'bg-white text-dark hover:bg-alert-orange/20 hover:shadow-[4px_4px_0px_0px_rgba(18,18,18,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]'
-            }`}
-          >
-            <Sparkles size={24} className={`inline mb-2 ${activeEngine === 'both' ? '' : 'group-hover:animate-pulse'}`} />
-            <div className="text-base">Both / Ambas</div>
-            {activeEngine === 'both' && <div className="text-xs font-normal mt-1">✓ Recommended</div>}
-          </button>
-        </div>
-        {activeEngine === 'both' && (
-          <div className="mt-4 p-4 border-2 border-alert-orange bg-alert-orange/10 animate-fade-in">
-            <p className="text-sm text-dark/80">
-              💡 <strong>Tip:</strong> Use the separate text areas below for each engine. They will be combined automatically.
-            </p>
-          </div>
-        )}
-      </BrutalCard>
-
-      {/* Results Textareas - Separated by Engine */}
-      <BrutalCard className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-dark">3. Paste Research Results</h2>
-          {autoLoadedResults && (
-            <div className="px-3 py-1 border-2 border-cool-blue bg-cool-blue text-xs font-bold">
-              ✓ AUTO-LOADED
-            </div>
-          )}
-        </div>
+        <h2 className="text-xl font-bold text-dark mb-4">Step 1: Paste Your Research Results</h2>
         {autoLoadedResults && (
-          <div className="mb-4 p-3 border-2 border-cool-blue bg-cool-blue/10">
-            <p className="text-sm text-dark/80">
-              <strong>✓ Results loaded automatically</strong> from your most recent raw search results.
-              You can edit or replace them if needed.
-            </p>
+          <div className="mb-4 p-3 border-2 border-cool-blue bg-cool-blue text-xs font-bold">
+            ✓ AUTO-LOADED from your most recent search
           </div>
         )}
 
-        {/* Gemini Results */}
-        {(activeEngine === 'gemini' || activeEngine === 'both') && (
-          <div className="mb-6">
-            <label className="block text-sm font-bold text-dark mb-2">
-              🔵 Gemini Deep Research Results
-            </label>
-            <textarea
-              value={geminiResults}
-              onChange={(e) => setGeminiResults(e.target.value)}
-              rows={12}
-              className="w-full border-4 border-dark px-4 py-3 text-dark font-mono text-sm focus:outline-none focus:ring-4 focus:ring-cool-blue"
-              placeholder="Paste Gemini Deep Research results here, including:
-- Source Reliability Matrix (table with scores)
-- Key findings and conclusions
-- All citations and references
-- Methodology notes
-
-Example:
-# Key Findings
-Research demonstrates that...
-
-## Source Reliability Matrix
-| Source | Score |
-| [Paper 1](url) | 8.5 |"
-            />
-            <p className="text-xs text-dark/60 mt-2">
-              {geminiResults.length} characters • {geminiResults.split('\n').length} lines
+        {/* Gemini Results - Always visible */}
+        <div className="mb-4">
+          <div className="bg-gradient-to-r from-cool-blue/20 to-cool-blue/10 border-l-4 border-cool-blue p-3 mb-2">
+            <p className="text-xs text-dark/80">
+              <strong>🔵 Gemini Deep Research</strong> - Paste complete results including Source Reliability Matrix and citations
             </p>
           </div>
-        )}
+          <textarea
+            value={geminiResults}
+            onChange={(e) => setGeminiResults(e.target.value)}
+            rows={10}
+            className="w-full border-4 border-cool-blue px-4 py-3 text-dark font-mono text-sm focus:outline-none focus:ring-4 focus:ring-cool-blue"
+            placeholder="Paste Gemini results here (optional if you only have Perplexity)..."
+          />
+          <p className="text-xs text-dark/60 mt-1">
+            {geminiResults.length > 0 ? `${geminiResults.length.toLocaleString()} characters` : 'Empty'}
+          </p>
+        </div>
 
-        {/* Perplexity Results */}
-        {(activeEngine === 'perplexity' || activeEngine === 'both') && (
-          <div className="mb-6">
-            <label className="block text-sm font-bold text-dark mb-2">
-              🟣 Perplexity AI Results
-            </label>
-            <textarea
-              value={perplexityResults}
-              onChange={(e) => setPerplexityResults(e.target.value)}
-              rows={12}
-              className="w-full border-4 border-dark px-4 py-3 text-dark font-mono text-sm focus:outline-none focus:ring-4 focus:ring-alert-orange"
-              placeholder="Paste Perplexity AI results here, including:
-- Key findings and conclusions
-- All citations and references [1], [2], etc.
-- Sources list with URLs
-
-Example:
-# Research Summary
-Based on recent studies [1][2]...
-
-## Sources:
-[1] Paper Title - https://..."
-            />
-            <p className="text-xs text-dark/60 mt-2">
-              {perplexityResults.length} characters • {perplexityResults.split('\n').length} lines
+        {/* Perplexity Results - Always visible */}
+        <div className="mb-4">
+          <div className="bg-gradient-to-r from-alert-orange/20 to-alert-orange/10 border-l-4 border-alert-orange p-3 mb-2">
+            <p className="text-xs text-dark/80">
+              <strong>🟣 Perplexity AI</strong> - Paste complete results including citations and sources
             </p>
           </div>
-        )}
+          <textarea
+            value={perplexityResults}
+            onChange={(e) => setPerplexityResults(e.target.value)}
+            rows={10}
+            className="w-full border-4 border-alert-orange px-4 py-3 text-dark font-mono text-sm focus:outline-none focus:ring-4 focus:ring-alert-orange"
+            placeholder="Paste Perplexity results here (optional if you only have Gemini)..."
+          />
+          <p className="text-xs text-dark/60 mt-1">
+            {perplexityResults.length > 0 ? `${perplexityResults.length.toLocaleString()} characters` : 'Empty'}
+          </p>
+        </div>
 
-        <div className="mt-4">
-          <p className="text-xs text-dark/60 mb-3">
-            Total: {(geminiResults.length + perplexityResults.length).toLocaleString()} characters
+        {/* Optional: Original Query */}
+        <div className="mt-6 p-4 bg-bg-light border-2 border-dark/20">
+          <label className="block text-sm font-bold text-dark mb-2">
+            Original Search Query <span className="text-xs font-normal text-dark/60">(Optional - helps with keywords)</span>
+          </label>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="e.g., Adaptive Learning Pathways in Algebra"
+            className="w-full border-2 border-dark px-3 py-2 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-cool-blue"
+          />
+        </div>
+
+        {/* Process Button */}
+        <div className="mt-6 pt-6 border-t-4 border-dark">
+          <h3 className="text-lg font-bold text-dark mb-3">Step 2: Process with AI</h3>
+          <p className="text-sm text-dark/70 mb-4">
+            Total content: <strong>{(geminiResults.length + perplexityResults.length).toLocaleString()} characters</strong>
+            {geminiResults.length > 0 && perplexityResults.length > 0 && ' (both engines will be combined)'}
           </p>
           <div className="flex gap-3">
             <button
@@ -749,7 +662,7 @@ Based on recent studies [1][2]...
 
       {/* Association Type */}
       <BrutalCard className="mb-6">
-        <h2 className="text-xl font-bold text-dark mb-4">4. Association Type</h2>
+        <h2 className="text-xl font-bold text-dark mb-4">Step 3: Association Type</h2>
         <p className="text-sm text-dark/70 mb-4">
           Choose whether to create a new standalone investigation or associate it with an existing research topic.
         </p>
@@ -847,7 +760,7 @@ Based on recent studies [1][2]...
 
       {/* Investigation Metadata */}
       <BrutalCard className="mb-6">
-        <h2 className="text-xl font-bold text-dark mb-4">5. Investigation Metadata</h2>
+        <h2 className="text-xl font-bold text-dark mb-4">Step 4: Investigation Metadata</h2>
 
         {processedData && (
           <div className="mb-6 p-4 border-2 border-cool-blue bg-cool-blue/5">
